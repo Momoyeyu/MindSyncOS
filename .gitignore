@@ -2,3 +2,10 @@ tutorial/
 tools/
 .vscode/
 z_tools/qemu/fdimage0.bin
+
+# src only
+*.bin
+*.obj
+*.lst
+*.gas
+*.img

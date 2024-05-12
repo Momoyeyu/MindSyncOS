@@ -5,12 +5,15 @@
 
 void HariMain(void)
 {
-    struct BOOTINFO *bootinfo = (struct BOOTINFO *)0x0ff0;
+    struct BOOTINFO *bootinfo = (struct BOOTINFO *)ADR_BOOTINFO;
     char s[40], mcursor[256];
     int mx = (bootinfo->scrnx - 16) / 2;
     int my = (bootinfo->scrny - 28 - 16) / 2;
 
     init_gdtidt();
+    init_pic();
+    io_sti();
+
     init_palette();
     init_screen(bootinfo->vram, bootinfo->scrnx, bootinfo->scrny);
 
@@ -22,6 +25,9 @@ void HariMain(void)
 
     init_cursor(mcursor, COL8_008484);
     putblock8(bootinfo->vram, bootinfo->scrnx, mx, my, mcursor, 16, 16);
+
+    io_out8(PIC0_IMR, 0xf9); /* 允许PIC1和键盘中断（11111001） */
+    io_out8(PIC1_IMR, 0xef); /* 允许鼠标中断（11101111） */
 
     // 无限循环，等待硬件中断
     for (;;)
