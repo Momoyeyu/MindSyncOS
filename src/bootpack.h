@@ -33,9 +33,9 @@ void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
 void init_screen8(char *vram, int x, int y);
 void putfont8(char *vram, int xsize, int x, int y, char c, char *font);
-void putfonts8_asc(char *vram, int xsize, int x, int y, char c, unsigned char *s);
+void putfont_asc(char *vram, int xsize, int x, int y, char c, char *s);
 void init_mouse_cursor8(char *mouse, char bc);
-void putblock8_8(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0, char *buf, int bxsize);
+void putblock8(char *vram, int xsize, int x, int y, char *buf, int width, int height);
 
 // 定义了一些颜色常量，用于在函数中指定颜色
 #define COL8_000000 0  // 黑
