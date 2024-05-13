@@ -13,6 +13,7 @@ void init_gdtidt(void)
     {
         set_segmdesc(gdt + i, 0, 0, 0);
     }
+    // 0号是空区域（null sector），不能够在那里定义段。
     set_segmdesc(gdt + 1, 0xffffffff, 0x00000000, AR_DATA32_RW);
     set_segmdesc(gdt + 2, LIMIT_BOTPAK, ADR_BOTPAK, AR_CODE32_ER);
     load_gdtr(LIMIT_GDT, ADR_GDT);

@@ -26,7 +26,14 @@ void HariMain(void)
     // initialize GDT & IDT
     init_gdtidt();
     init_pic();
-    io_sti();
+    io_sti(); // 初始化完 GDT IDT PIC 之后才开中断
+
+    // initialize devices
+    io_out8(PIC0_IMR, 0xf9); /* 允许PIC1和键盘中断（11111001） */
+    io_out8(PIC1_IMR, 0xef); /* 允许鼠标中断（11101111） */
+    fifo8_init(&keyfifo, 32, keybuf);
+    fifo8_init(&mousefifo, 128, mousebuf);
+    init_keyboard();
 
     // say hello
     init_palette();
@@ -37,13 +44,6 @@ void HariMain(void)
     // draw cursor
     init_cursor(mcursor, COL8_008484);
     putblock8(bootinfo->vram, bootinfo->scrnx, mx, my, mcursor, 16, 16);
-
-    // devices
-    io_out8(PIC0_IMR, 0xf9); /* 允许PIC1和键盘中断（11111001） */
-    io_out8(PIC1_IMR, 0xef); /* 允许鼠标中断（11101111） */
-    fifo8_init(&keyfifo, 32, keybuf);
-    fifo8_init(&mousefifo, 128, mousebuf);
-    init_keyboard();
 
     struct MOUSE_DEC mdec;
 
