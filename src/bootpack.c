@@ -3,12 +3,16 @@
 #include <stdio.h>
 #include "bootpack.h"
 
+extern struct FIFO8 keyfifo;
+
 void HariMain(void)
 {
     struct BOOTINFO *bootinfo = (struct BOOTINFO *)ADR_BOOTINFO;
-    char s[40], mcursor[256];
+    char s[40], mcursor[256], keybuf[32];
     int mx = (bootinfo->scrnx - 16) / 2;
     int my = (bootinfo->scrny - 28 - 16) / 2;
+    int i, j;
+    fifo8_init(&keyfifo, 32, keybuf);
 
     init_gdtidt();
     init_pic();
@@ -32,6 +36,18 @@ void HariMain(void)
     // 无限循环，等待硬件中断
     for (;;)
     {
-        io_hlt();
+        io_cli();
+        if (fifo8_status(&keyfifo))
+        {
+            i = fifo8_get(&keyfifo);
+            io_sti();
+            sprintf(s, "%02X", i);
+            boxfill8(bootinfo->vram, bootinfo->scrnx, COL8_000000, 0, 16, 15, 31);
+            putfont_asc(bootinfo->vram, bootinfo->scrnx, 0, 16, COL8_FFFFFF, s);
+        }
+        else
+        {
+            io_stihlt();
+        }
     }
 }
