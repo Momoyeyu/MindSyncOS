@@ -31,22 +31,23 @@ void inthandler21(int *esp)
 /* 来自PS/2键盘的中断 */
 {
     unsigned char data;
-    io_out8(PIC0_OCW2, 0x61); // 通知PIC中断已经得到处理，可以继续处理下一个中断
+    io_out8(PIC0_OCW2, 0x61); // 通知PIC0 IRQ-1中断已经得到处理，可以继续处理下一个中断
     data = io_in8(PORT_KEYDAT);
     fifo8_put(&keyfifo, data);
     return;
 }
 
+struct FIFO8 mousefifo;
+
 void inthandler2c(int *esp)
 /* 来自PS/2鼠标的中断 */
 {
-    struct BOOTINFO *binfo = (struct BOOTINFO *)ADR_BOOTINFO;
-    boxfill8(binfo->vram, binfo->scrnx, COL8_000000, 0, 0, 32 * 8 - 1, 15);
-    putfont_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, "INT 2C (IRQ-12) : PS/2 mouse");
-    for (;;)
-    {
-        io_hlt();
-    }
+    unsigned char data;
+    io_out8(PIC1_OCW2, 0x64); // 通知PIC1 IRQ-12中断已经得到处理，可以继续处理下一个中断
+    io_out8(PIC0_OCW2, 0x62); // 通知PICo IRQ-2中断已经得到处理，可以继续处理下一个中断
+    data = io_in8(PORT_KEYDAT);
+    fifo8_put(&mousefifo, data);
+    return;
 }
 
 void inthandler27(int *esp)
