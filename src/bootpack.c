@@ -3,17 +3,8 @@
 #include <stdio.h>
 #include "bootpack.h"
 
-extern struct FIFO8 keyfifo, mousefifo;
-void init_keyboard(void);
-
-struct MOUSE_DEC
-{
-    unsigned char buf[3], phase;
-    int x, y, btn;
-};
-
-void enable_mouse(struct MOUSE_DEC *mdec);
-int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
+extern struct FIFO8 keyfifo, mousefifo; // keyboard.c mouse.c
+unsigned int memtest(unsigned int start, unsigned int end);
 
 void HariMain(void)
 {
@@ -41,12 +32,15 @@ void HariMain(void)
     putfont_asc(bootinfo->vram, bootinfo->scrnx, 97, 97, COL8_000000, "Momoyeyu OS");
     putfont_asc(bootinfo->vram, bootinfo->scrnx, 96, 96, COL8_FFFFFF, "Momoyeyu OS");
 
+    // test memory
+    i = memtest(0x00400000, 0xbfffffff) >> 20; // 1MB = 1024*1024B = 2^20B
+    sprintf(s, "memory %dMB", i);
+    putfont_asc(bootinfo->vram, bootinfo->scrnx, 0, 32, COL8_FFFFFF, s);
+
     // draw cursor
     init_cursor(mcursor, COL8_008484);
     putblock8(bootinfo->vram, bootinfo->scrnx, mx, my, mcursor, 16, 16);
-
     struct MOUSE_DEC mdec;
-
     enable_mouse(&mdec);
 
     // 无限循环，等待硬件中断
@@ -71,17 +65,11 @@ void HariMain(void)
                 {
                     sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
                     if ((mdec.btn & 0x01) != 0)
-                    {
                         s[1] = 'L';
-                    }
                     if ((mdec.btn & 0x02) != 0)
-                    {
                         s[3] = 'R';
-                    }
                     if ((mdec.btn & 0x04) != 0)
-                    {
                         s[2] = 'C';
-                    }
                     boxfill8(bootinfo->vram, bootinfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
                     putfont_asc(bootinfo->vram, bootinfo->scrnx, 32, 16, COL8_FFFFFF, s);
 
@@ -110,81 +98,39 @@ void HariMain(void)
     }
 }
 
-#define PORT_KEYDAT 0x0060
-#define PORT_KEYSTA 0x0064
-#define PORT_KEYCMD 0x0064
-#define KEYSTA_SEND_NOTREADY 0x02
-#define KEYCMD_WRITE_MODE 0x60
-#define KBC_MODE 0x47
+#define EFLAGS_AC_BIT 0x00040000
+#define CR0_CACHE_DISABLE 0x60000000
 
-void wait_KBC_sendready(void)
+unsigned int memtest(unsigned int start, unsigned int end)
 {
-    for (;;)
+    char flg486 = 0;
+    unsigned int eflg, cr0, i;
+
+    // 确认是否支持缓存（是386还是486）
+    eflg = io_load_eflags();
+    eflg |= EFLAGS_AC_BIT; /* AC-bit = 1 */
+    io_store_eflags(eflg);
+    eflg = io_load_eflags();
+    /* 如果是386，AC-bit会自动变回0 */
+    if ((eflg & EFLAGS_AC_BIT) != 0)
     {
-        if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREADY) == 0)
-            break;
+        flg486 = 1;
     }
-    return;
-}
+    eflg &= ~EFLAGS_AC_BIT;
+    io_store_eflags(eflg); /* AC-bit = 0 */
 
-void init_keyboard(void)
-{
-    wait_KBC_sendready();
-    io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE); // 模式设定
-    wait_KBC_sendready();
-    io_out8(PORT_KEYDAT, KBC_MODE); // 模式号码设定
-    return;
-}
-
-#define KEYCMD_SENDTO_MOUSE 0xd4
-#define MOUSECMD_ENABLE 0xf4
-
-void enable_mouse(struct MOUSE_DEC *mdec)
-{
-    wait_KBC_sendready();
-    io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
-    wait_KBC_sendready();
-    io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
-    mdec->phase = 0;
-    return;
-}
-
-int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
-{
-    switch (mdec->phase)
+    if (flg486 != 0)
     {
-    case 0:
-        if (dat == 0xfa) /* 进入到等待鼠标的0xfa的状态 */
-            mdec->phase = 1;
-        return 0;
-    case 1:
-        if ((dat & 0xc8) == 0x08)
-        {
-            mdec->buf[0] = dat;
-            mdec->phase = 2;
-        }
-        return 0;
-    case 2:
-        mdec->buf[1] = dat;
-        mdec->phase = 3;
-        return 0;
-    case 3:
-        mdec->buf[2] = dat;
-        mdec->phase = 1;
-        mdec->btn = mdec->buf[0] & 0x07;
-        mdec->x = mdec->buf[1];
-        mdec->y = mdec->buf[2];
-        if ((mdec->buf[0] & 0x10) != 0)
-        {
-            mdec->x |= 0xffffff00;
-        }
-        if ((mdec->buf[0] & 0x20) != 0)
-        {
-            mdec->y |= 0xffffff00;
-        }
-        mdec->y = -mdec->y; /* 鼠标的y方向与画面符号相反 */
-        return 1;
-    default:
-        return -1;
+        cr0 = load_cr0();
+        cr0 |= CR0_CACHE_DISABLE; /* 禁止缓存 */
+        store_cr0(cr0);
     }
+    i = memtest_sub(start, end);
+    if (flg486 != 0)
+    {
+        cr0 = load_cr0();
+        cr0 &= ~CR0_CACHE_DISABLE; /* 允许缓存 */
+        store_cr0(cr0);
+    }
+    return i;
 }
