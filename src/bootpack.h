@@ -1,7 +1,7 @@
 // 启动区头文件
 // 定义位置参考代码上方注释
 
-/* asmhead.nas */
+// -------------------------------------- asmhead.nas --------------------------------------
 struct BOOTINFO
 {               /* 0x0ff0-0x0fff */
     char cyls;  /* boot sectorはどこまでdiskを読んだのか */
@@ -13,7 +13,7 @@ struct BOOTINFO
 };
 #define ADR_BOOTINFO 0x00000ff0
 
-/* naskfunc.nas */
+// -------------------------------------- naskfunc.nas --------------------------------------
 void io_hlt(void);
 void io_cli(void);
 void io_sti(void);
@@ -28,7 +28,7 @@ void asm_inthandler27(void);
 void asm_inthandler2c(void);
 unsigned int memtest_sub(unsigned int start, unsigned int end);
 
-/* graphic.c */
+// -------------------------------------- graphic.c --------------------------------------
 void init_palette(void);
 void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
@@ -56,7 +56,7 @@ void putblock8(char *vram, int xsize, int x, int y, char *buf, int width, int he
 #define COL8_008484 14 // 暗青色
 #define COL8_848484 15 // 灰色
 
-/* dsctbl.c */
+// -------------------------------------- dsctbl.c --------------------------------------
 struct SEGMENT_DESCRIPTOR
 {
     short limit_low, base_low;
@@ -82,7 +82,7 @@ void set_gatedesc(struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar);
 #define AR_CODE32_ER 0x409a
 #define AR_INTGATE32 0x008e
 
-/* int.c */
+// -------------------------------------- int.c --------------------------------------
 void init_pic(void);
 void inthandler21(int *esp);
 void inthandler27(int *esp);
@@ -100,7 +100,7 @@ void inthandler2c(int *esp);
 #define PIC1_ICW3 0x00a1
 #define PIC1_ICW4 0x00a1
 
-/* fifo.c */
+// -------------------------------------- fifo.c --------------------------------------
 struct FIFO8
 {
     unsigned char *buf;
@@ -111,7 +111,7 @@ int fifo8_put(struct FIFO8 *fifo, unsigned char data);
 int fifo8_get(struct FIFO8 *fifo);
 int fifo8_status(struct FIFO8 *fifo);
 
-// keyboard.c
+// -------------------------------------- keyboard.c --------------------------------------
 void init_keyboard(void);
 void wait_KBC_sendready(void);
 void inthandler21(int *esp);
@@ -122,7 +122,7 @@ void inthandler21(int *esp);
 #define KEYCMD_WRITE_MODE 0x60
 #define KBC_MODE 0x47
 
-// mouse.c
+// -------------------------------------- mouse.c --------------------------------------
 struct MOUSE_DEC
 {
     unsigned char buf[3], phase;
@@ -133,3 +133,26 @@ int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
 void inthandler2c(int *esp);
 #define KEYCMD_SENDTO_MOUSE 0xd4
 #define MOUSECMD_ENABLE 0xf4
+
+// -------------------------------------- memory.c --------------------------------------
+#define EFLAGS_AC_BIT 0x00040000
+#define CR0_CACHE_DISABLE 0x60000000
+#define MEMMAN_FREES 4090 /* 大约是32KB*/
+#define MEMMAN_ADDR 0x003c0000
+
+struct FREEINFO
+{ /* 可用信息 */
+    unsigned int addr, size;
+};
+
+struct MEMMAN
+{ /* 内存管理 */
+    int frees, maxfrees, lostsize, losts;
+    struct FREEINFO free[MEMMAN_FREES];
+};
+
+unsigned int memtest(unsigned int start, unsigned int end);
+void memman_init(struct MEMMAN *man);
+unsigned int memman_total(struct MEMMAN *man);
+unsigned int memman_alloc(struct MEMMAN *man, unsigned int size);
+int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size);

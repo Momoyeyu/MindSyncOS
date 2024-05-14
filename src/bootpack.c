@@ -4,7 +4,6 @@
 #include "bootpack.h"
 
 extern struct FIFO8 keyfifo, mousefifo; // keyboard.c mouse.c
-unsigned int memtest(unsigned int start, unsigned int end);
 
 void HariMain(void)
 {
@@ -33,8 +32,13 @@ void HariMain(void)
     putfont_asc(bootinfo->vram, bootinfo->scrnx, 96, 96, COL8_FFFFFF, "Momoyeyu OS");
 
     // test memory
-    i = memtest(0x00400000, 0xbfffffff) >> 20; // 1MB = 1024*1024B = 2^20B
-    sprintf(s, "memory %dMB", i);
+    unsigned int memtotal;
+    struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
+    memtotal = memtest(0x00400000, 0xbfffffff);
+    memman_init(memman);
+    memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
+    memman_free(memman, 0x00400000, memtotal - 0x00400000);
+    sprintf(s, "memory %dMB free : %dKB", memtotal >> 20, memman_total(memman) >> 10);
     putfont_asc(bootinfo->vram, bootinfo->scrnx, 0, 32, COL8_FFFFFF, s);
 
     // draw cursor
@@ -96,41 +100,4 @@ void HariMain(void)
             io_stihlt();
         }
     }
-}
-
-#define EFLAGS_AC_BIT 0x00040000
-#define CR0_CACHE_DISABLE 0x60000000
-
-unsigned int memtest(unsigned int start, unsigned int end)
-{
-    char flg486 = 0;
-    unsigned int eflg, cr0, i;
-
-    // 确认是否支持缓存（是386还是486）
-    eflg = io_load_eflags();
-    eflg |= EFLAGS_AC_BIT; /* AC-bit = 1 */
-    io_store_eflags(eflg);
-    eflg = io_load_eflags();
-    /* 如果是386，AC-bit会自动变回0 */
-    if ((eflg & EFLAGS_AC_BIT) != 0)
-    {
-        flg486 = 1;
-    }
-    eflg &= ~EFLAGS_AC_BIT;
-    io_store_eflags(eflg); /* AC-bit = 0 */
-
-    if (flg486 != 0)
-    {
-        cr0 = load_cr0();
-        cr0 |= CR0_CACHE_DISABLE; /* 禁止缓存 */
-        store_cr0(cr0);
-    }
-    i = memtest_sub(start, end);
-    if (flg486 != 0)
-    {
-        cr0 = load_cr0();
-        cr0 &= ~CR0_CACHE_DISABLE; /* 允许缓存 */
-        store_cr0(cr0);
-    }
-    return i;
 }
