@@ -63,7 +63,7 @@ void HariMain(void)
     sprintf(s, "memory %dMB free : %dKB", memtotal >> 20, memman_available(memman) >> 10);
     putfont_asc(buf_back, bootinfo->scrnx, 0, 32, COL8_FFFFFF, s);
 
-    sheet_refresh(shtctl);
+    sheet_refresh(shtctl, sht_back, 0, 0, bootinfo->scrnx, 48);
 
     int i;
     // 无限循环，等待硬件中断
@@ -79,7 +79,7 @@ void HariMain(void)
                 sprintf(s, "%02X", i);
                 boxfill8(buf_back, bootinfo->scrnx, COL8_008484, 8, 16, 23, 31);
                 putfont_asc(buf_back, bootinfo->scrnx, 8, 16, COL8_FFFFFF, s);
-                sheet_refresh(shtctl);
+                sheet_refresh(shtctl, sht_back, 0, 0, bootinfo->scrnx, 48);
             }
             else if (fifo8_status(&mousefifo))
             {
@@ -110,7 +110,8 @@ void HariMain(void)
                     sprintf(s, "(%3d, %3d)", mx, my);
                     boxfill8(buf_back, bootinfo->scrnx, COL8_008484, 0, 0, 79, 15); /* 隐藏旧坐标 */
                     putfont_asc(buf_back, bootinfo->scrnx, 0, 0, COL8_FFFFFF, s);   /* 显示新坐标 */
-                    sheet_slide(shtctl, sht_mouse, mx, my);                         /* 内含 sheet_refresh */
+                    sheet_refresh(shtctl, sht_back, 0, 0, bootinfo->scrnx, 48);
+                    sheet_slide(shtctl, sht_mouse, mx, my); /* 内含 sheet_refresh */
                 }
             }
         }

@@ -177,7 +177,7 @@ int memman_free_4k(struct MemoryManager *manager, unsigned int addr, unsigned in
 struct Sheet
 {
     unsigned char *buf;
-    int box_width, box_height, vx0, vy0, color, layer, flags;
+    int bxsize, bysize, vx0, vy0, color, layer, flags;
 };
 
 struct SheetController
@@ -192,6 +192,7 @@ struct SheetController *shtctl_init(struct MemoryManager *manager, unsigned char
 struct Sheet *sheet_alloc(struct SheetController *ctl);
 void sheet_set_buf(struct Sheet *sheet, unsigned char *buf, int xsize, int ysize, int color);
 void sheet_set_layer(struct SheetController *ctl, struct Sheet *sheet, int layer);
-void sheet_refresh(struct SheetController *ctl);
+void sheet_refresh(struct SheetController *controller, struct Sheet *sheet, int bx0, int by0, int bx1, int by1);
 void sheet_slide(struct SheetController *ctl, struct Sheet *sheet, int new_vx0, int new_vy0);
 void sheet_free(struct SheetController *ctl, struct Sheet *sheet);
+void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1);

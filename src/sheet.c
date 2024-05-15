@@ -45,8 +45,8 @@ struct Sheet *sheet_alloc(struct SheetController *controller)
 void sheet_set_buf(struct Sheet *sheet, unsigned char *buf, int xsize, int ysize, int color)
 {
     sheet->buf = buf;
-    sheet->box_width = xsize;
-    sheet->box_height = ysize;
+    sheet->bxsize = xsize;
+    sheet->bysize = ysize;
     sheet->color = color;
     return;
 }
@@ -83,7 +83,7 @@ void sheet_set_layer(struct SheetController *controller, struct Sheet *sheet, in
             }
             controller->sheets_ptr[layer] = sheet;
         }
-        sheet_refresh(controller);
+        sheet_refresh(controller, sheet, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
     }
     else if (layer > old)
     {
@@ -105,43 +105,30 @@ void sheet_set_layer(struct SheetController *controller, struct Sheet *sheet, in
             }
         }
         controller->sheets_ptr[layer] = sheet;
-        sheet_refresh(controller);
+        sheet_refresh(controller, sheet, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
     }
     return;
 }
 
-void sheet_refresh(struct SheetController *controller)
+void sheet_refresh(struct SheetController *controller, struct Sheet *sheet, int bx0, int by0, int bx1, int by1)
 {
-    int layer;        // 图层高度
-    int buf_x, buf_y; // 相对坐标 (buf_x, buf_y)
-    int vx, vy;       // 绝对坐标 (vram_x, vram_y)
-    unsigned char *buf, c, *vram = controller->vram;
-    struct Sheet *sheet;
-    for (layer = 0; layer <= controller->top; layer++) // 从 0 到 top 绘制图层
-    {
-        sheet = controller->sheets_ptr[layer];
-        buf = sheet->buf;
-        for (buf_y = 0; buf_y < sheet->box_height; buf_y++)
-        {
-            vy = sheet->vy0 + buf_y;
-            for (buf_x = 0; buf_x < sheet->box_width; buf_x++)
-            {
-                vx = sheet->vx0 + buf_x;
-                c = buf[buf_y * sheet->box_width + buf_x];
-                if (c != sheet->color)
-                    vram[vy * controller->xsize + vx] = c;
-            }
-        }
-    }
+    if (sheet->layer >= 0)
+        sheet_refresh_sub(controller, sheet->vx0 + bx0, sheet->vy0 + by0, sheet->vx0 + bx1, sheet->vy0 + by1);
     return;
 }
 
 void sheet_slide(struct SheetController *controller, struct Sheet *sheet, int new_vx0, int new_vy0)
 {
+    int old_x = sheet->vx0;
+    int old_y = sheet->vy0;
     sheet->vx0 = new_vx0;
     sheet->vy0 = new_vy0;
-    if (sheet->layer >= 0)         /* 如果正在显示*/
-        sheet_refresh(controller); /* 按新图层的信息刷新画面 */
+    /* 如果正在显示*/
+    if (sheet->layer >= 0)
+    { // 采用局部更新
+        sheet_refresh_sub(controller, old_x, old_y, old_x + sheet->bxsize, old_y + sheet->bysize);
+        sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
+    }
     return;
 }
 
@@ -150,5 +137,44 @@ void sheet_free(struct SheetController *controller, struct Sheet *sheet)
     if (sheet->layer >= 0)
         sheet_set_layer(controller, sheet, -1); // 隐藏
     sheet->flags = SHEET_FREE;                  // 标志释放
+    return;
+}
+
+// 只更新 [(vx0, vy0), (vx1, vy1)) 内的显存
+void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1)
+{
+    int h, bx, by, vx, vy;
+    int bx0, bx1, by0, by1;
+    unsigned char *buf, c, *vram = controller->vram;
+    struct Sheet *sheet;
+    for (h = 0; h <= controller->top; h++)
+    {
+        sheet = controller->sheets_ptr[h];
+        buf = sheet->buf;
+        // 缩小搜索范围，减少if次数
+        bx0 = vx0 - sheet->vx0;
+        bx1 = vx1 - sheet->vx0;
+        by0 = vy0 - sheet->vy0;
+        by1 = vy1 - sheet->vy0;
+        if (bx0 < 0)
+            bx0 = 0;
+        if (bx1 > sheet->bxsize)
+            bx1 = sheet->bxsize;
+        if (by0 < 0)
+            by0 = 0;
+        if (by1 > sheet->bysize)
+            by1 = sheet->bysize;
+        for (by = by0; by < by1; by++)
+        {
+            vy = sheet->vy0 + by;
+            for (bx = bx0; bx < bx1; bx++)
+            {
+                vx = sheet->vx0 + bx;
+                c = buf[by * sheet->bxsize + bx];
+                if (c != sheet->color) // 减小访存次数
+                    vram[vy * controller->xsize + vx] = c;
+            }
+        }
+    }
     return;
 }
