@@ -8,8 +8,8 @@ void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf)
     fifo->buf = buf;
     fifo->free = size;
     fifo->flags = 0;
-    fifo->p = 0;
-    fifo->q = 0;
+    fifo->write_ptr = 0;
+    fifo->read_ptr = 0;
     return;
 }
 
@@ -22,12 +22,12 @@ int fifo8_put(struct FIFO8 *fifo, unsigned char data)
         fifo->flags |= FLAGS_OVERRUN;
         return -1;
     }
-    fifo->buf[fifo->p] = data;
+    fifo->buf[fifo->write_ptr] = data;
     fifo->free -= 1;
-    fifo->p += 1;
-    if (fifo->p == fifo->size)
+    fifo->write_ptr += 1;
+    if (fifo->write_ptr == fifo->size)
     {
-        fifo->p = 0;
+        fifo->write_ptr = 0;
     }
     return 0;
 }
@@ -39,12 +39,12 @@ int fifo8_get(struct FIFO8 *fifo)
     {
         return -1;
     }
-    data = fifo->buf[fifo->q];
-    fifo->q += 1;
+    data = fifo->buf[fifo->read_ptr];
+    fifo->read_ptr += 1;
     fifo->free += 1;
-    if (fifo->q == fifo->size)
+    if (fifo->read_ptr == fifo->size)
     {
-        fifo->q = 0;
+        fifo->read_ptr = 0;
     }
     return data;
 }

@@ -12,10 +12,10 @@ void HariMain(void)
     int mx = (bootinfo->scrnx - 16) / 2;
     int my = (bootinfo->scrny - 28 - 16) / 2;
     unsigned int memtotal;
-    struct MOUSE_DEC mdec;                                // mouse
-    struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR; // memory manager
-    struct SHTCTL *shtctl;                                // sheet ctl
-    struct SHEET *sht_back, *sht_mouse;                   // background, mouse
+    struct MouseDescriptor mdec;                                        // mouse
+    struct MemoryManager *memman = (struct MemoryManager *)MEMMAN_ADDR; // memory manager
+    struct SheetController *shtctl;                                     // sheet ctl
+    struct Sheet *sht_back, *sht_mouse;                                 // background, mouse
     unsigned char *buf_back, buf_mouse[256];
 
     // initialize GDT & IDT
@@ -32,7 +32,7 @@ void HariMain(void)
     enable_mouse(&mdec);
 
     // init memory management
-    memtotal = memtest(0x00400000, 0xbfffffff);
+    memtotal = mem_test(0x00400000, 0xbfffffff);
     memman_init(memman);
     memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
     memman_free(memman, 0x00400000, memtotal - 0x00400000);
@@ -46,21 +46,21 @@ void HariMain(void)
     init_palette();
 
     // init screen
-    sheet_setbuf(sht_back, buf_back, bootinfo->scrnx, bootinfo->scrny, -1); /* 没有透明色 */
+    sheet_set_buf(sht_back, buf_back, bootinfo->scrnx, bootinfo->scrny, -1); /* 没有透明色 */
     init_screen(buf_back, bootinfo->scrnx, bootinfo->scrny);
     sheet_slide(shtctl, sht_back, 0, 0);
-    sheet_updown(shtctl, sht_back, 0);
+    sheet_set_layer(shtctl, sht_back, 0);
 
     // init cursor
-    sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99); /* 透明色号99 */
-    init_cursor(buf_mouse, 99);                     /* 透明色号99 */
+    sheet_set_buf(sht_mouse, buf_mouse, 16, 16, 99); /* 透明色号99 */
+    init_cursor(buf_mouse, 99);                      /* 透明色号99 */
     sheet_slide(shtctl, sht_mouse, mx, my);
-    sheet_updown(shtctl, sht_mouse, 1);
+    sheet_set_layer(shtctl, sht_mouse, 1);
 
     // debug
     sprintf(s, "(%3d, %3d)", mx, my);
     putfont_asc(buf_back, bootinfo->scrnx, 0, 0, COL8_FFFFFF, s);
-    sprintf(s, "memory %dMB free : %dKB", memtotal >> 20, memman_total(memman) >> 10);
+    sprintf(s, "memory %dMB free : %dKB", memtotal >> 20, memman_available(memman) >> 10);
     putfont_asc(buf_back, bootinfo->scrnx, 0, 32, COL8_FFFFFF, s);
 
     sheet_refresh(shtctl);
@@ -88,11 +88,11 @@ void HariMain(void)
                 if (mouse_decode(&mdec, i))
                 {
                     sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
-                    if ((mdec.btn & 0x01) != 0)
+                    if ((mdec.button & 0x01) != 0)
                         s[1] = 'L';
-                    if ((mdec.btn & 0x02) != 0)
+                    if ((mdec.button & 0x02) != 0)
                         s[3] = 'R';
-                    if ((mdec.btn & 0x04) != 0)
+                    if ((mdec.button & 0x04) != 0)
                         s[2] = 'C';
                     boxfill8(buf_back, bootinfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
                     putfont_asc(buf_back, bootinfo->scrnx, 32, 16, COL8_FFFFFF, s);

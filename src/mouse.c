@@ -2,7 +2,7 @@
 
 #include "bootpack.h"
 
-void enable_mouse(struct MOUSE_DEC *mdec)
+void enable_mouse(struct MouseDescriptor *mdec)
 {
     wait_KBC_sendready();
     io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
@@ -12,7 +12,7 @@ void enable_mouse(struct MOUSE_DEC *mdec)
     return;
 }
 
-int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
+int mouse_decode(struct MouseDescriptor *mdec, unsigned char dat)
 {
     switch (mdec->phase)
     {
@@ -34,7 +34,7 @@ int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
     case 3:
         mdec->buf[2] = dat;
         mdec->phase = 1;
-        mdec->btn = mdec->buf[0] & 0x07;
+        mdec->button = mdec->buf[0] & 0x07;
         mdec->x = mdec->buf[1];
         mdec->y = mdec->buf[2];
         if ((mdec->buf[0] & 0x10) != 0)
