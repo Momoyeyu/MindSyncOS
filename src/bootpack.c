@@ -18,6 +18,7 @@ void HariMain(void)
     struct Sheet *sht_back, *sht_mouse, *sht_win;
     ; // background, mouse
     unsigned char *buf_back, buf_mouse[256], *buf_win;
+    unsigned int count = 0;
 
     // initialize GDT & IDT
     init_gdtidt();
@@ -44,7 +45,7 @@ void HariMain(void)
     sht_mouse = sheet_alloc(sheet_controller); // mouse
     sht_win = sheet_alloc(sheet_controller);   // window
     buf_back = (unsigned char *)memman_alloc_4k(memman, bootinfo->scrnx * bootinfo->scrny);
-    buf_win = (unsigned char *)memman_alloc_4k(memman, 160 * 68);
+    buf_win = (unsigned char *)memman_alloc_4k(memman, 160 * 52);
 
     // ---------------------------------- 显示部分 ----------------------------------
     init_palette();
@@ -60,10 +61,10 @@ void HariMain(void)
     sheet_slide(sht_mouse, mx, my);
 
     // init window
-    sheet_set_buf(sht_win, buf_win, 160, 68, -1);
-    make_window8(buf_win, 160, 68, "window");
-    putfont_asc(buf_win, 160, 24, 28, COL8_000000, "Welcome to");
-    putfont_asc(buf_win, 160, 24, 44, COL8_000000, "Momoyeyu-OS!");
+    sheet_set_buf(sht_win, buf_win, 160, 52, -1);
+    make_window8(buf_win, 160, 52, "counter");
+    // putfont_asc(buf_win, 160, 24, 28, COL8_000000, "Welcome to");
+    // putfont_asc(buf_win, 160, 24, 44, COL8_000000, "Momoyeyu-OS!");
     sheet_slide(sht_win, 80, 72);
 
     // set layer
@@ -83,6 +84,11 @@ void HariMain(void)
     // 无限循环，等待硬件中断
     for (;;)
     {
+        count++;
+        sprintf(s, "%010d", count);
+        boxfill8(buf_win, 160, COL8_C6C6C6, 40, 28, 119, 43);
+        putfont_asc(buf_win, 160, 40, 28, COL8_000000, s);
+        sheet_refresh(sht_win, 40, 28, 40 + 8 * 10, 28 + 16);
         io_cli();
         if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo))
         {
