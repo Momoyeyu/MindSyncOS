@@ -19,6 +19,7 @@ struct SheetController *shtctl_init(struct MemoryManager *manager, unsigned char
     for (i = 0; i < MAX_SHEETS; i++)
     {
         controller->sheets_data[i].flags = SHEET_FREE; // 标记为未使用
+        controller->sheets_data[i].controller = controller;
     }
 err:
     // 将来可以引入错误处理
@@ -51,8 +52,9 @@ void sheet_set_buf(struct Sheet *sheet, unsigned char *buf, int xsize, int ysize
     return;
 }
 
-void sheet_set_layer(struct SheetController *controller, struct Sheet *sheet, int layer)
+void sheet_set_layer(struct Sheet *sheet, int layer)
 {
+    struct SheetController *controller = sheet->controller;
     int old = sheet->layer; /* 存储设置前的图层信息 */
     /* 如果指定的图层过高或过低，则进行修正 */
     if (layer > controller->top + 1)
@@ -83,7 +85,7 @@ void sheet_set_layer(struct SheetController *controller, struct Sheet *sheet, in
             }
             controller->sheets_ptr[layer] = sheet;
         }
-        sheet_refresh(controller, sheet, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
+        sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
     }
     else if (layer > old)
     {
@@ -105,20 +107,21 @@ void sheet_set_layer(struct SheetController *controller, struct Sheet *sheet, in
             }
         }
         controller->sheets_ptr[layer] = sheet;
-        sheet_refresh(controller, sheet, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
+        sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
     }
     return;
 }
 
-void sheet_refresh(struct SheetController *controller, struct Sheet *sheet, int bx0, int by0, int bx1, int by1)
+void sheet_refresh(struct Sheet *sheet, int bx0, int by0, int bx1, int by1)
 {
     if (sheet->layer >= 0)
-        sheet_refresh_sub(controller, sheet->vx0 + bx0, sheet->vy0 + by0, sheet->vx0 + bx1, sheet->vy0 + by1);
+        sheet_refresh_sub(sheet->controller, sheet->vx0 + bx0, sheet->vy0 + by0, sheet->vx0 + bx1, sheet->vy0 + by1);
     return;
 }
 
-void sheet_slide(struct SheetController *controller, struct Sheet *sheet, int new_vx0, int new_vy0)
+void sheet_slide(struct Sheet *sheet, int new_vx0, int new_vy0)
 {
+    struct SheetController *controller = sheet->controller;
     int old_x = sheet->vx0;
     int old_y = sheet->vy0;
     sheet->vx0 = new_vx0;
@@ -132,11 +135,11 @@ void sheet_slide(struct SheetController *controller, struct Sheet *sheet, int ne
     return;
 }
 
-void sheet_free(struct SheetController *controller, struct Sheet *sheet)
+void sheet_free(struct Sheet *sheet)
 {
     if (sheet->layer >= 0)
-        sheet_set_layer(controller, sheet, -1); // 隐藏
-    sheet->flags = SHEET_FREE;                  // 标志释放
+        sheet_set_layer(sheet, -1); // 隐藏
+    sheet->flags = SHEET_FREE;      // 标志释放
     return;
 }
 
@@ -147,6 +150,14 @@ void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int
     int bx0, bx1, by0, by1;
     unsigned char *buf, c, *vram = controller->vram;
     struct Sheet *sheet;
+    if (vx0 < 0)
+        vx0 = 0;
+    if (vy0 < 0)
+        vy0 = 0;
+    if (vx1 > controller->xsize)
+        vx1 = controller->xsize;
+    if (vy1 > controller->ysize)
+        vy1 = controller->ysize;
     for (h = 0; h <= controller->top; h++)
     {
         sheet = controller->sheets_ptr[h];

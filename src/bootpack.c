@@ -14,9 +14,10 @@ void HariMain(void)
     unsigned int memtotal;
     struct MouseDescriptor mdec;                                        // mouse
     struct MemoryManager *memman = (struct MemoryManager *)MEMMAN_ADDR; // memory manager
-    struct SheetController *shtctl;                                     // sheet ctl
-    struct Sheet *sht_back, *sht_mouse;                                 // background, mouse
-    unsigned char *buf_back, buf_mouse[256];
+    struct SheetController *sheet_controller;                           // sheet ctl
+    struct Sheet *sht_back, *sht_mouse, *sht_win;
+    ; // background, mouse
+    unsigned char *buf_back, buf_mouse[256], *buf_win;
 
     // initialize GDT & IDT
     init_gdtidt();
@@ -36,11 +37,14 @@ void HariMain(void)
     memman_init(memman);
     memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
     memman_free(memman, 0x00400000, memtotal - 0x00400000);
-    // alloc memory for background and mouse
-    shtctl = shtctl_init(memman, bootinfo->vram, bootinfo->scrnx, bootinfo->scrny);
-    sht_back = sheet_alloc(shtctl);  // background
-    sht_mouse = sheet_alloc(shtctl); // mouse
+
+    // allocate memory
+    sheet_controller = shtctl_init(memman, bootinfo->vram, bootinfo->scrnx, bootinfo->scrny);
+    sht_back = sheet_alloc(sheet_controller);  // background
+    sht_mouse = sheet_alloc(sheet_controller); // mouse
+    sht_win = sheet_alloc(sheet_controller);   // window
     buf_back = (unsigned char *)memman_alloc_4k(memman, bootinfo->scrnx * bootinfo->scrny);
+    buf_win = (unsigned char *)memman_alloc_4k(memman, 160 * 68);
 
     // ---------------------------------- 显示部分 ----------------------------------
     init_palette();
@@ -48,14 +52,24 @@ void HariMain(void)
     // init screen
     sheet_set_buf(sht_back, buf_back, bootinfo->scrnx, bootinfo->scrny, -1); /* 没有透明色 */
     init_screen(buf_back, bootinfo->scrnx, bootinfo->scrny);
-    sheet_slide(shtctl, sht_back, 0, 0);
-    sheet_set_layer(shtctl, sht_back, 0);
+    sheet_slide(sht_back, 0, 0);
 
     // init cursor
     sheet_set_buf(sht_mouse, buf_mouse, 16, 16, 99); /* 透明色号99 */
     init_cursor(buf_mouse, 99);                      /* 透明色号99 */
-    sheet_slide(shtctl, sht_mouse, mx, my);
-    sheet_set_layer(shtctl, sht_mouse, 1);
+    sheet_slide(sht_mouse, mx, my);
+
+    // init window
+    sheet_set_buf(sht_win, buf_win, 160, 68, -1);
+    make_window8(buf_win, 160, 68, "window");
+    putfont_asc(buf_win, 160, 24, 28, COL8_000000, "Welcome to");
+    putfont_asc(buf_win, 160, 24, 44, COL8_000000, "Momoyeyu-OS!");
+    sheet_slide(sht_win, 80, 72);
+
+    // set layer
+    sheet_set_layer(sht_back, 0);
+    sheet_set_layer(sht_win, 1);
+    sheet_set_layer(sht_mouse, 2);
 
     // debug
     sprintf(s, "(%3d, %3d)", mx, my);
@@ -63,7 +77,7 @@ void HariMain(void)
     sprintf(s, "memory %dMB free : %dKB", memtotal >> 20, memman_available(memman) >> 10);
     putfont_asc(buf_back, bootinfo->scrnx, 0, 32, COL8_FFFFFF, s);
 
-    sheet_refresh(shtctl, sht_back, 0, 0, bootinfo->scrnx, 48);
+    sheet_refresh(sht_back, 0, 0, bootinfo->scrnx, 48);
 
     int i;
     // 无限循环，等待硬件中断
@@ -79,7 +93,7 @@ void HariMain(void)
                 sprintf(s, "%02X", i);
                 boxfill8(buf_back, bootinfo->scrnx, COL8_008484, 8, 16, 23, 31);
                 putfont_asc(buf_back, bootinfo->scrnx, 8, 16, COL8_FFFFFF, s);
-                sheet_refresh(shtctl, sht_back, 0, 0, bootinfo->scrnx, 48);
+                sheet_refresh(sht_back, 0, 0, bootinfo->scrnx, 48);
             }
             else if (fifo8_status(&mousefifo))
             {
@@ -101,17 +115,17 @@ void HariMain(void)
                     my += mdec.y;
                     if (mx < 0)
                         mx = 0;
-                    else if (mx > bootinfo->scrnx - 16)
-                        mx = bootinfo->scrnx - 16;
+                    else if (mx > bootinfo->scrnx - 1)
+                        mx = bootinfo->scrnx - 1;
                     if (my < 0)
                         my = 0;
-                    else if (my > bootinfo->scrny - 16)
-                        my = bootinfo->scrny - 16;
+                    else if (my > bootinfo->scrny - 1)
+                        my = bootinfo->scrny - 1;
                     sprintf(s, "(%3d, %3d)", mx, my);
                     boxfill8(buf_back, bootinfo->scrnx, COL8_008484, 0, 0, 79, 15); /* 隐藏旧坐标 */
                     putfont_asc(buf_back, bootinfo->scrnx, 0, 0, COL8_FFFFFF, s);   /* 显示新坐标 */
-                    sheet_refresh(shtctl, sht_back, 0, 0, bootinfo->scrnx, 48);
-                    sheet_slide(shtctl, sht_mouse, mx, my); /* 内含 sheet_refresh */
+                    sheet_refresh(sht_back, 0, 0, bootinfo->scrnx, 48);
+                    sheet_slide(sht_mouse, mx, my); /* 内含 sheet_refresh */
                 }
             }
         }
