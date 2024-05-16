@@ -40,6 +40,7 @@ void putfont8(char *vram, int xsize, int x, int y, char c, char *font);
 void putfont_asc(char *vram, int xsize, int x, int y, char c, char *s);
 void init_mouse_cursor8(char *mouse, char bc);
 void putblock8(char *vram, int xsize, int x, int y, char *buf, int width, int height);
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 
 // 定义了一些颜色常量，用于在函数中指定颜色
 #define COL8_000000 0  // 黑
@@ -183,7 +184,7 @@ struct Sheet
 
 struct SheetController
 {
-    unsigned char *vram;
+    unsigned char *vram, *map;
     int xsize, ysize, top;
     struct Sheet *sheets_ptr[MAX_SHEETS];
     struct Sheet sheets_data[MAX_SHEETS];
@@ -196,4 +197,4 @@ void sheet_set_layer(struct Sheet *sheet, int layer);
 void sheet_refresh(struct Sheet *sheet, int bx0, int by0, int bx1, int by1);
 void sheet_slide(struct Sheet *sheet, int new_vx0, int new_vy0);
 void sheet_free(struct Sheet *sheet);
-void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1);
+void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1, int h0, int h1);

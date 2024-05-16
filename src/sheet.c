@@ -9,8 +9,12 @@ struct SheetController *shtctl_init(struct MemoryManager *manager, unsigned char
     int i;
     controller = (struct SheetController *)memman_alloc_4k(manager, sizeof(struct SheetController));
     if (controller == NULL)
+        return NULL;
+    controller->map = (unsigned char *)memman_alloc_4k(manager, xsize * ysize);
+    if (controller->map == NULL)
     {
-        goto err;
+        memman_free_4k(manager, (int)controller, sizeof(struct SheetController));
+        return NULL;
     }
     controller->vram = vram;
     controller->xsize = xsize;
@@ -21,8 +25,6 @@ struct SheetController *shtctl_init(struct MemoryManager *manager, unsigned char
         controller->sheets_data[i].flags = SHEET_FREE; // 标记为未使用
         controller->sheets_data[i].controller = controller;
     }
-err:
-    // 将来可以引入错误处理
     return controller;
 }
 
@@ -75,6 +77,8 @@ void sheet_set_layer(struct Sheet *sheet, int layer)
                 controller->sheets_ptr[l]->layer = l;
             }
             controller->top -= 1;
+            sheet_refresh_map(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize, 0);
+            sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize, 0, old - 1);
         }
         else // 降低sheet
         {
@@ -84,8 +88,9 @@ void sheet_set_layer(struct Sheet *sheet, int layer)
                 controller->sheets_ptr[l]->layer = l;
             }
             controller->sheets_ptr[layer] = sheet;
+            sheet_refresh_map(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize, layer + 1);
+            sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize, layer + 1, old);
         }
-        sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
     }
     else if (layer > old)
     {
@@ -107,7 +112,8 @@ void sheet_set_layer(struct Sheet *sheet, int layer)
             }
         }
         controller->sheets_ptr[layer] = sheet;
-        sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
+        sheet_refresh_map(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize, layer);
+        sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize, layer, layer);
     }
     return;
 }
@@ -115,7 +121,7 @@ void sheet_set_layer(struct Sheet *sheet, int layer)
 void sheet_refresh(struct Sheet *sheet, int bx0, int by0, int bx1, int by1)
 {
     if (sheet->layer >= 0)
-        sheet_refresh_sub(sheet->controller, sheet->vx0 + bx0, sheet->vy0 + by0, sheet->vx0 + bx1, sheet->vy0 + by1);
+        sheet_refresh_sub(sheet->controller, sheet->vx0 + bx0, sheet->vy0 + by0, sheet->vx0 + bx1, sheet->vy0 + by1, sheet->layer, sheet->layer);
     return;
 }
 
@@ -129,8 +135,10 @@ void sheet_slide(struct Sheet *sheet, int new_vx0, int new_vy0)
     /* 如果正在显示*/
     if (sheet->layer >= 0)
     { // 采用局部更新
-        sheet_refresh_sub(controller, old_x, old_y, old_x + sheet->bxsize, old_y + sheet->bysize);
-        sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize);
+        sheet_refresh_map(controller, old_x, old_y, old_x + sheet->bxsize, old_y + sheet->bysize, 0);
+        sheet_refresh_map(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize, sheet->layer);
+        sheet_refresh_sub(controller, old_x, old_y, old_x + sheet->bxsize, old_y + sheet->bysize, 0, sheet->layer - 1);
+        sheet_refresh_sub(controller, sheet->vx0, sheet->vy0, sheet->vx0 + sheet->bxsize, sheet->vy0 + sheet->bysize, sheet->layer, sheet->layer);
     }
     return;
 }
@@ -144,11 +152,11 @@ void sheet_free(struct Sheet *sheet)
 }
 
 // 只更新 [(vx0, vy0), (vx1, vy1)) 内的显存
-void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1)
+void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1, int h0, int h1)
 {
     int h, bx, by, vx, vy;
     int bx0, bx1, by0, by1;
-    unsigned char *buf, c, *vram = controller->vram;
+    unsigned char *buf, c, *vram = controller->vram, *map = controller->map, sid;
     struct Sheet *sheet;
     if (vx0 < 0)
         vx0 = 0;
@@ -158,10 +166,15 @@ void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int
         vx1 = controller->xsize;
     if (vy1 > controller->ysize)
         vy1 = controller->ysize;
-    for (h = 0; h <= controller->top; h++)
+    if (h0 < 0)
+        h0 = 0;
+    if (h1 > controller->top)
+        h1 = controller->top;
+    for (h = h0; h <= h1; h++)
     {
         sheet = controller->sheets_ptr[h];
         buf = sheet->buf;
+        sid = sheet - controller->sheets_data; // 重要！
         // 缩小搜索范围，减少if次数
         bx0 = vx0 - sheet->vx0;
         bx1 = vx1 - sheet->vx0;
@@ -181,9 +194,54 @@ void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int
             for (bx = bx0; bx < bx1; bx++)
             {
                 vx = sheet->vx0 + bx;
-                c = buf[by * sheet->bxsize + bx];
-                if (c != sheet->color) // 减小访存次数
-                    vram[vy * controller->xsize + vx] = c;
+                if (sid == map[vy * controller->xsize + vx]) // 减小访存次数
+                    vram[vy * controller->xsize + vx] = buf[by * sheet->bxsize + bx];
+            }
+        }
+    }
+    return;
+}
+
+void sheet_refresh_map(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1, int h0)
+{
+    int h, bx, by, vx, vy, bx0, by0, bx1, by1;
+    unsigned char *buf, sid, *map = controller->map;
+    struct Sheet *sht;
+    if (vx0 < 0)
+        vx0 = 0;
+    if (vy0 < 0)
+        vy0 = 0;
+    if (vx1 > controller->xsize)
+        vx1 = controller->xsize;
+    if (vy1 > controller->ysize)
+        vy1 = controller->ysize;
+    if (h0 < 0)
+        h0 = 0;
+    for (h = h0; h <= controller->top; h++)
+    {
+        sht = controller->sheets_ptr[h];
+        sid = sht - controller->sheets_data; /* 将进行了减法计算的地址作为图层号码使用 */
+        buf = sht->buf;
+        bx0 = vx0 - sht->vx0;
+        by0 = vy0 - sht->vy0;
+        bx1 = vx1 - sht->vx0;
+        by1 = vy1 - sht->vy0;
+        if (bx0 < 0)
+            bx0 = 0;
+        if (by0 < 0)
+            by0 = 0;
+        if (bx1 > sht->bxsize)
+            bx1 = sht->bxsize;
+        if (by1 > sht->bysize)
+            by1 = sht->bysize;
+        for (by = by0; by < by1; by++)
+        {
+            vy = sht->vy0 + by;
+            for (bx = bx0; bx < bx1; bx++)
+            {
+                vx = sht->vx0 + bx;
+                if (buf[by * sht->bxsize + bx] != sht->color)
+                    map[vy * controller->xsize + vx] = sid;
             }
         }
     }

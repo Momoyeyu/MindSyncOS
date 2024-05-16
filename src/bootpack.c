@@ -16,7 +16,6 @@ void HariMain(void)
     struct MemoryManager *memman = (struct MemoryManager *)MEMMAN_ADDR; // memory manager
     struct SheetController *sheet_controller;                           // sheet ctl
     struct Sheet *sht_back, *sht_mouse, *sht_win;
-    ; // background, mouse
     unsigned char *buf_back, buf_mouse[256], *buf_win;
     unsigned int count = 0;
 
@@ -63,8 +62,6 @@ void HariMain(void)
     // init window
     sheet_set_buf(sht_win, buf_win, 160, 52, -1);
     make_window8(buf_win, 160, 52, "counter");
-    // putfont_asc(buf_win, 160, 24, 28, COL8_000000, "Welcome to");
-    // putfont_asc(buf_win, 160, 24, 44, COL8_000000, "Momoyeyu-OS!");
     sheet_slide(sht_win, 80, 72);
 
     // set layer
