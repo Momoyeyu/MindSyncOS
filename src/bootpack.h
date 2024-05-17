@@ -29,6 +29,7 @@ void store_cr0(int cr0);
 void asm_inthandler21(void);
 void asm_inthandler27(void);
 void asm_inthandler2c(void);
+void asm_inthandler20(void);
 unsigned int memtest_sub(unsigned int start, unsigned int end);
 
 // -------------------------------------- graphic.c --------------------------------------
@@ -198,3 +199,33 @@ void sheet_refresh(struct Sheet *sheet, int bx0, int by0, int bx1, int by1);
 void sheet_slide(struct Sheet *sheet, int new_vx0, int new_vy0);
 void sheet_free(struct Sheet *sheet);
 void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1, int h0, int h1);
+
+// -------------------------------------- timer.c --------------------------------------
+#define PIT_CTRL 0x0043
+#define PIT_CNT0 0x0040
+#define MAX_TIMER 500
+#define TIMER_FLAGS_FREE 0  /* 未配置状态 */
+#define TIMER_FLAGS_ALLOC 1 /* 已配置状态 */
+#define TIMER_FLAGS_USING 2 /* 定时器运行中 */
+
+struct TIMER
+{
+    unsigned int timeout, flags;
+    struct FIFO8 *fifo;
+    unsigned char data;
+};
+
+struct TIMERCTL
+{
+    unsigned int count;
+    struct TIMER timer[MAX_TIMER];
+};
+
+extern struct TIMERCTL timerctl;
+
+void init_pit(void);
+struct TIMER *timer_alloc(void);
+void timer_free(struct TIMER *timer);
+void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data);
+void timer_settime(struct TIMER *timer, unsigned int timeout);
+void inthandler20(int *esp);
