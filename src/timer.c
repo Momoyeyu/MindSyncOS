@@ -13,6 +13,7 @@ void init_pit(void)
     io_out8(PIT_CNT0, 0x2e);
     int i;
     timerctl.count = 0;
+    timerctl.next = 0xffffffff;
     for (i = 0; i < MAX_TIMER; i++)
     {
         timerctl.timer[i].flags = TIMER_FLAGS_FREE;
@@ -49,8 +50,10 @@ void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data)
 
 void timer_settime(struct TIMER *timer, unsigned int timeout)
 {
-    timer->timeout = timeout;
+    timer->timeout = timeout + timerctl.count;
     timer->flags = TIMER_FLAGS_USING;
+    if (timerctl.next > timer->timeout)
+        timerctl.next = timer->timeout;
     return;
 }
 
@@ -59,16 +62,24 @@ void inthandler20(int *esp)
     io_out8(PIC0_OCW2, 0x60); /* 把IRQ-00信号接收完了的信息通知给PIC */
     /* 暂时什么也不做 */
     timerctl.count++;
+    if (timerctl.next > timerctl.count)
+        return;
+    timerctl.next = 0xffffffff;
     int i;
     for (i = 0; i < MAX_TIMER; i++)
     {
-        if (timerctl.timer[i].flags == TIMER_FLAGS_USING)
+        struct TIMER *timer = &(timerctl.timer[i]);
+        if (timer->flags == TIMER_FLAGS_USING)
         {
-            timerctl.timer[i].timeout--;
-            if (timerctl.timer[i].timeout == 0)
+            if (timer->timeout <= timerctl.count)
             {
-                timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
-                fifo8_put(timerctl.timer[i].fifo, timerctl.timer[i].data);
+                timer->flags = TIMER_FLAGS_ALLOC;
+                fifo8_put(timer->fifo, timerctl.timer[i].data);
+            }
+            else
+            {
+                if (timerctl.next > timer->timeout)
+                    timerctl.next = timer->timeout;
             }
         }
     }
