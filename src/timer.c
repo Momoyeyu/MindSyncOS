@@ -51,44 +51,69 @@ void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data)
 
 void timer_settime(struct TIMER *timer, unsigned int timeout)
 {
-    int e, i, j;
+    int e;
     timer->timeout = timeout + timerctl.count;
     timer->flags = TIMER_FLAGS_USING;
     e = io_load_eflags();
     io_cli();
-    for (i = 0; i < timerctl.using; i++)
-        if (timerctl.timers[i]->timeout >= timer->timeout)
-            break;
-    for (j = timerctl.using; j > i; j--)
-        timerctl.timers[j] = timerctl.timers[j - 1];
     timerctl.using += 1;
-    timerctl.timers[i] = timer;
-    timerctl.next = timerctl.timers[0]->timeout;
+    if (timerctl.using == 1)
+    { // 第一个 timer
+        timerctl.timers[0] = timer;
+        timer->next = NULL;
+        timerctl.next = timer->timeout;
+        io_store_eflags(e);
+        return;
+    }
+    struct TIMER *t, *s;
+    t = timerctl.timers[0];
+    if (timer->timeout <= t->timeout)
+    { // 置首
+        timer->next = t;
+        timerctl.timers[0] = timer;
+        timerctl.next = timer->timeout;
+        io_store_eflags(e);
+        return;
+    }
+    s = t;
+    for (t = t->next; t != NULL; t = t->next)
+    {
+        if (timer->timeout <= t->timeout)
+        {
+            timer->next = t;
+            s->next = timer;
+            io_store_eflags(e);
+            return;
+        }
+        s = t;
+    }
+    s->next = timer;
+    timer->next = NULL;
     io_store_eflags(e);
     return;
 }
 
 void inthandler20(int *esp)
 {
+    int i;
+    struct TIMER *timer;
     io_out8(PIC0_OCW2, 0x60); /* 把IRQ-00信号接收完了的信息通知给PIC */
-    /* 暂时什么也不做 */
     timerctl.count++;
     if (timerctl.next > timerctl.count)
         return;
-    int i, j;
+    timer = timerctl.timers[0]; // 选择第一个 timer
     for (i = 0; i < timerctl.using; i++)
     {
-        struct TIMER *timer = timerctl.timers[i];
         if (timer->timeout > timerctl.count)
             break;
         timer->flags = TIMER_FLAGS_ALLOC;
         fifo32_put(timer->fifo, timer->data);
+        timer = timer->next; // 选择下一个 timer
     }
     timerctl.using -= i;
-    for (j = 0; j < timerctl.using; j++)
-        timerctl.timers[j] = timerctl.timers[j + i];
+    timerctl.timers[0] = timer;
     if (timerctl.using > 0)
-        timerctl.next = timerctl.timers[0];
+        timerctl.next = timerctl.timers[0]->timeout;
     else
         timerctl.next = 0xffffffff;
     return;

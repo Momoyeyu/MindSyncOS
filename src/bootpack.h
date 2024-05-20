@@ -208,6 +208,7 @@ void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int
 
 struct TIMER
 {
+    struct TIMER *next;
     unsigned int timeout, flags;
     struct FIFO32 *fifo;
     int data;
