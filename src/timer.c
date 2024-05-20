@@ -59,18 +59,18 @@ void timer_settime(struct TIMER *timer, unsigned int timeout)
     timerctl.using += 1;
     if (timerctl.using == 1)
     { // 第一个 timer
-        timerctl.timers[0] = timer;
+        timerctl.t0 = timer;
         timer->next = NULL;
         timerctl.next = timer->timeout;
         io_store_eflags(e);
         return;
     }
     struct TIMER *t, *s;
-    t = timerctl.timers[0];
+    t = timerctl.t0;
     if (timer->timeout <= t->timeout)
     { // 置首
         timer->next = t;
-        timerctl.timers[0] = timer;
+        timerctl.t0 = timer;
         timerctl.next = timer->timeout;
         io_store_eflags(e);
         return;
@@ -101,7 +101,7 @@ void inthandler20(int *esp)
     timerctl.count++;
     if (timerctl.next > timerctl.count)
         return;
-    timer = timerctl.timers[0]; // 选择第一个 timer
+    timer = timerctl.t0; // 选择第一个 timer
     for (i = 0; i < timerctl.using; i++)
     {
         if (timer->timeout > timerctl.count)
@@ -111,9 +111,9 @@ void inthandler20(int *esp)
         timer = timer->next; // 选择下一个 timer
     }
     timerctl.using -= i;
-    timerctl.timers[0] = timer;
+    timerctl.t0 = timer;
     if (timerctl.using > 0)
-        timerctl.next = timerctl.timers[0]->timeout;
+        timerctl.next = timerctl.t0->timeout;
     else
         timerctl.next = 0xffffffff;
     return;
