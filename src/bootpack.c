@@ -93,12 +93,11 @@ void HariMain(void)
 
     sheet_refresh(sht_back, 0, 0, bootinfo->scrnx, 48);
 
-    int i;
+    int i, count = 0;
     // 无限循环，等待硬件中断
     for (;;)
     {
-        sprintf(s, "%010d", timerctl.count);
-        putfonts8_asc_sht(sht_win, COL8_C6C6C6, COL8_000000, 40, 28, s, 10);
+        count++;
         io_cli();
         if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) + fifo8_status(&timerfifo))
         {
@@ -122,8 +121,7 @@ void HariMain(void)
                         s[3] = 'R';
                     if ((mdec.button & 0x04) != 0)
                         s[2] = 'C';
-                    boxfill8(buf_back, bootinfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
-                    putfont_asc(buf_back, bootinfo->scrnx, 32, 16, COL8_FFFFFF, s);
+                    putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 32, 16, s, 15);
                     // 移动鼠标
                     mx += mdec.x;
                     my += mdec.y;
@@ -137,9 +135,6 @@ void HariMain(void)
                         my = bootinfo->scrny - 1;
                     sprintf(s, "(%3d, %3d)", mx, my);
                     putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 0, s, 10);
-                    // boxfill8(buf_back, bootinfo->scrnx, COL8_008484, 0, 0, 79, 15); /* 隐藏旧坐标 */
-                    // putfont_asc(buf_back, bootinfo->scrnx, 0, 0, COL8_FFFFFF, s);   /* 显示新坐标 */
-                    // sheet_refresh(sht_back, 0, 0, bootinfo->scrnx, 48);
                     sheet_slide(sht_mouse, mx, my); /* 内含 sheet_refresh */
                 }
             }
@@ -148,9 +143,16 @@ void HariMain(void)
                 i = fifo8_get(&timerfifo);
                 io_sti();
                 if (i == 10)
+                {
                     putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 64, "10[sec]", 7);
+                    sprintf(s, "%010d", count);
+                    putfonts8_asc_sht(sht_win, COL8_C6C6C6, COL8_000000, 40, 28, s, 10);
+                }
                 else if (i == 3)
+                {
                     putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 80, "3[sec]", 6);
+                    count = 0;
+                }
                 else
                 {
                     if (i)
