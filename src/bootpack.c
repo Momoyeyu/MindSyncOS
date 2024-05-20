@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include "bootpack.h"
 
-extern struct FIFO8 keyfifo, mousefifo; // keyboard.c mouse.c
+extern struct FIFO32 keyfifo, mousefifo; // keyboard.c mouse.c
 
 void putfonts8_asc_sht(struct Sheet *sht, int bc, int c, int x0, int y0, char *s, int l);
 void HariMain(void)
 {
     struct BOOTINFO *bootinfo = (struct BOOTINFO *)ADR_BOOTINFO;
-    struct FIFO8 timerfifo;
+    struct FIFO32 timerfifo;
     char s[40], keybuf[32], mousebuf[128], timerbuf[8], timerbuf2[8], timerbuf3[8];
     struct TIMER *timer, *timer2, *timer3;
     int mx = (bootinfo->scrnx - 16) / 2;
@@ -30,12 +30,12 @@ void HariMain(void)
     // initialize devices
     io_out8(PIC0_IMR, 0xf8); /* PIT和PIC1和键盘设置为许可(11111000) */
     io_out8(PIC1_IMR, 0xef); /* 允许鼠标中断（11101111） */
-    fifo8_init(&keyfifo, 32, keybuf);
-    fifo8_init(&mousefifo, 128, mousebuf);
+    fifo32_init(&keyfifo, 32, keybuf);
+    fifo32_init(&mousefifo, 128, mousebuf);
     init_keyboard();
     enable_mouse(&mdec);
 
-    fifo8_init(&timerfifo, 8, timerbuf);
+    fifo32_init(&timerfifo, 8, timerbuf);
     timer = timer_alloc();
     timer_init(timer, &timerfifo, 10);
     timer_settime(timer, 1000);
@@ -99,18 +99,18 @@ void HariMain(void)
     {
         count++;
         io_cli();
-        if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) + fifo8_status(&timerfifo))
+        if (fifo32_status(&keyfifo) + fifo32_status(&mousefifo) + fifo32_status(&timerfifo))
         {
-            if (fifo8_status(&keyfifo))
+            if (fifo32_status(&keyfifo))
             {
-                i = fifo8_get(&keyfifo);
+                i = fifo32_get(&keyfifo);
                 io_sti();
                 sprintf(s, "%02X", i);
                 putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 16, s, 2);
             }
-            else if (fifo8_status(&mousefifo))
+            else if (fifo32_status(&mousefifo))
             {
-                i = fifo8_get(&mousefifo);
+                i = fifo32_get(&mousefifo);
                 io_sti();
                 if (mouse_decode(&mdec, i))
                 {
@@ -138,9 +138,9 @@ void HariMain(void)
                     sheet_slide(sht_mouse, mx, my); /* 内含 sheet_refresh */
                 }
             }
-            else if (fifo8_status(&timerfifo))
+            else if (fifo32_status(&timerfifo))
             {
-                i = fifo8_get(&timerfifo);
+                i = fifo32_get(&timerfifo);
                 io_sti();
                 if (i == 10)
                 {

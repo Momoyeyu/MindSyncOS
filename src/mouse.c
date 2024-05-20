@@ -52,7 +52,7 @@ int mouse_decode(struct MouseDescriptor *mdec, unsigned char dat)
     }
 }
 
-struct FIFO8 mousefifo;
+struct FIFO32 mousefifo;
 
 void inthandler2c(int *esp)
 /* 来自PS/2鼠标的中断 */
@@ -61,6 +61,6 @@ void inthandler2c(int *esp)
     io_out8(PIC1_OCW2, 0x64); // 通知PIC1 IRQ-12中断已经得到处理，可以继续处理下一个中断
     io_out8(PIC0_OCW2, 0x62); // 通知PICo IRQ-2中断已经得到处理，可以继续处理下一个中断
     data = io_in8(PORT_KEYDAT);
-    fifo8_put(&mousefifo, data);
+    fifo32_put(&mousefifo, data);
     return;
 }

@@ -108,15 +108,15 @@ void inthandler27(int *esp);
 void inthandler2c(int *esp);
 
 // -------------------------------------- fifo.c --------------------------------------
-struct FIFO8
+struct FIFO32
 {
     unsigned char *buf;
-    int write_ptr, read_ptr, size, free, flags;
+    int p, q, size, free, flags;
 };
-void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf);
-int fifo8_put(struct FIFO8 *fifo, unsigned char data);
-int fifo8_get(struct FIFO8 *fifo);
-int fifo8_status(struct FIFO8 *fifo); // 返回缓冲区已使用空间大小
+void fifo32_init(struct FIFO32 *fifo, int size, unsigned char *buf);
+int fifo32_put(struct FIFO32 *fifo, unsigned char data);
+int fifo32_get(struct FIFO32 *fifo);
+int fifo32_status(struct FIFO32 *fifo); // 返回缓冲区已使用空间大小
 
 // -------------------------------------- keyboard.c --------------------------------------
 #define PORT_KEYDAT 0x0060
@@ -125,7 +125,7 @@ int fifo8_status(struct FIFO8 *fifo); // 返回缓冲区已使用空间大小
 #define KEYSTA_SEND_NOTREADY 0x02
 #define KEYCMD_WRITE_MODE 0x60
 #define KBC_MODE 0x47
-extern struct FIFO8 keyfifo;
+extern struct FIFO32 keyfifo;
 
 void init_keyboard(void);
 void wait_KBC_sendready(void);
@@ -134,7 +134,7 @@ void inthandler21(int *esp);
 // -------------------------------------- mouse.c --------------------------------------
 #define KEYCMD_SENDTO_MOUSE 0xd4
 #define MOUSECMD_ENABLE 0xf4
-extern struct FIFO8 mousefifo;
+extern struct FIFO32 mousefifo;
 
 struct MouseDescriptor
 {
@@ -211,7 +211,7 @@ void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int
 struct TIMER
 {
     unsigned int timeout, flags;
-    struct FIFO8 *fifo;
+    struct FIFO32 *fifo;
     unsigned char data;
 };
 
@@ -227,6 +227,6 @@ extern struct TIMERCTL timerctl;
 void init_pit(void);
 struct TIMER *timer_alloc(void);
 void timer_free(struct TIMER *timer);
-void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data);
+void timer_init(struct TIMER *timer, struct FIFO32 *fifo, unsigned char data);
 void timer_settime(struct TIMER *timer, unsigned int timeout);
 void inthandler20(int *esp);
