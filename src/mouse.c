@@ -2,8 +2,14 @@
 
 #include "bootpack.h"
 
-void enable_mouse(struct MouseDescriptor *mdec)
+// GLOBAL VAR
+struct FIFO32 *mousefifo;
+int mousedata0;
+
+void enable_mouse(struct FIFO32 *fifo, int data0, struct MouseDescriptor *mdec)
 {
+    mousefifo = fifo;
+    mousedata0 = data0;
     wait_KBC_sendready();
     io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
     wait_KBC_sendready();
@@ -52,15 +58,13 @@ int mouse_decode(struct MouseDescriptor *mdec, unsigned char dat)
     }
 }
 
-struct FIFO32 mousefifo;
-
 void inthandler2c(int *esp)
 /* 来自PS/2鼠标的中断 */
 {
-    unsigned char data;
+    int data;
     io_out8(PIC1_OCW2, 0x64); // 通知PIC1 IRQ-12中断已经得到处理，可以继续处理下一个中断
     io_out8(PIC0_OCW2, 0x62); // 通知PICo IRQ-2中断已经得到处理，可以继续处理下一个中断
     data = io_in8(PORT_KEYDAT);
-    fifo32_put(&mousefifo, data);
+    fifo32_put(mousefifo, data + mousedata0);
     return;
 }

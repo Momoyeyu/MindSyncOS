@@ -110,11 +110,11 @@ void inthandler2c(int *esp);
 // -------------------------------------- fifo.c --------------------------------------
 struct FIFO32
 {
-    unsigned char *buf;
+    int *buf;
     int p, q, size, free, flags;
 };
-void fifo32_init(struct FIFO32 *fifo, int size, unsigned char *buf);
-int fifo32_put(struct FIFO32 *fifo, unsigned char data);
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf);
+int fifo32_put(struct FIFO32 *fifo, int data);
 int fifo32_get(struct FIFO32 *fifo);
 int fifo32_status(struct FIFO32 *fifo); // 返回缓冲区已使用空间大小
 
@@ -125,16 +125,14 @@ int fifo32_status(struct FIFO32 *fifo); // 返回缓冲区已使用空间大小
 #define KEYSTA_SEND_NOTREADY 0x02
 #define KEYCMD_WRITE_MODE 0x60
 #define KBC_MODE 0x47
-extern struct FIFO32 keyfifo;
 
-void init_keyboard(void);
+void init_keyboard(struct FIFO32 *fifo, int data0);
 void wait_KBC_sendready(void);
 void inthandler21(int *esp);
 
 // -------------------------------------- mouse.c --------------------------------------
 #define KEYCMD_SENDTO_MOUSE 0xd4
 #define MOUSECMD_ENABLE 0xf4
-extern struct FIFO32 mousefifo;
 
 struct MouseDescriptor
 {
@@ -142,7 +140,7 @@ struct MouseDescriptor
     int x, y, button;
 };
 
-void enable_mouse(struct MouseDescriptor *mdec);
+void enable_mouse(struct FIFO32 *fifo, int data0, struct MouseDescriptor *mdec);
 int mouse_decode(struct MouseDescriptor *mdec, unsigned char dat);
 void inthandler2c(int *esp);
 
@@ -212,7 +210,7 @@ struct TIMER
 {
     unsigned int timeout, flags;
     struct FIFO32 *fifo;
-    unsigned char data;
+    int data;
 };
 
 struct TIMERCTL
@@ -227,6 +225,6 @@ extern struct TIMERCTL timerctl;
 void init_pit(void);
 struct TIMER *timer_alloc(void);
 void timer_free(struct TIMER *timer);
-void timer_init(struct TIMER *timer, struct FIFO32 *fifo, unsigned char data);
+void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data);
 void timer_settime(struct TIMER *timer, unsigned int timeout);
 void inthandler20(int *esp);
