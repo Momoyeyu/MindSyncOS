@@ -93,11 +93,10 @@ void HariMain(void)
 
     sheet_refresh(sht_back, 0, 0, bootinfo->scrnx, 48);
 
-    int i, count = 0;
+    int i;
     // 无限循环，等待硬件中断
     for (;;)
     {
-        count++;
         io_cli();
         if (fifo32_status(&fifo))
         {
@@ -107,6 +106,10 @@ void HariMain(void)
             { // keyboard
                 sprintf(s, "%02X", i - 256);
                 putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 16, s, 2);
+                if (i == 0x1e + 256)
+                {
+                    putfonts8_asc_sht(sht_win, COL8_C6C6C6, COL8_000000, 40, 28, "A", 1);
+                }
             }
             else if (512 <= i && i < 768)
             { // mouse
@@ -139,13 +142,10 @@ void HariMain(void)
             else if (i == 10)
             {
                 putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 64, "10[sec]", 7);
-                sprintf(s, "%010d", count);
-                putfonts8_asc_sht(sht_win, COL8_C6C6C6, COL8_000000, 40, 28, s, 10);
             }
             else if (i == 3)
             {
                 putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 80, "3[sec]", 6);
-                count = 0;
             }
             else if (i == 1)
             {
@@ -164,7 +164,7 @@ void HariMain(void)
         }
         else
         {
-            io_sti();
+            io_stihlt();
         }
     }
 }
