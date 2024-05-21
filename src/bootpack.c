@@ -4,6 +4,7 @@
 #include "bootpack.h"
 
 void putfonts8_asc_sht(struct Sheet *sht, int bc, int c, int x0, int y0, char *s, int l);
+void set490(struct FIFO32 *fifo, int mode);
 void HariMain(void)
 {
     struct BOOTINFO *bootinfo = (struct BOOTINFO *)ADR_BOOTINFO;
@@ -44,6 +45,8 @@ void HariMain(void)
     timer3 = timer_alloc();
     timer_init(timer3, &fifo, 1); // 1 & 0
     timer_settime(timer3, 50);
+
+    set490(&fifo, 1);
 
     // init memory management
     memtotal = mem_test(0x00400000, 0xbfffffff);
@@ -171,5 +174,21 @@ void putfonts8_asc_sht(struct Sheet *sht, int bc, int c, int x0, int y0, char *s
     boxfill8(sht->buf, sht->bxsize, bc, x0, y0, x0 + 8 * l - 1, y0 + 15);
     putfont_asc(sht->buf, sht->bxsize, x0, y0, c, s);
     sheet_refresh(sht, x0, y0, x0 + 8 * l, y0 + 16);
+    return;
+}
+
+void set490(struct FIFO32 *fifo, int mode)
+{
+    int i;
+    struct TIMER *timer;
+    if (mode != 0)
+    {
+        for (i = 0; i < 490; i++)
+        {
+            timer = timer_alloc();
+            timer_init(timer, fifo, 1024 + i);
+            timer_settime(timer, 100 * 60 * 60 * 24 * 50 + i * 100);
+        }
+    }
     return;
 }
