@@ -128,7 +128,7 @@ void putfont_asc(char *vram, int xsize, int x, int y, char c, char *s)
     return;
 }
 
-void init_cursor(char *mouse, char background_color)
+void init_mouse_cursor8(char *mouse, char background_color)
 {
     static char cursor[16][16] = {
         "**************..",

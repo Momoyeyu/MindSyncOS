@@ -3,8 +3,17 @@
 #include <stdio.h>
 #include "bootpack.h"
 
+static char keytable[0x54] = {
+    0, 0, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^', 0, 0,
+    'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '@', '[', 0, 0, 'A', 'S',
+    'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', ':', 0, 0, ']', 'Z', 'X', 'C', 'V',
+    'B', 'N', 'M', ',', '.', '/', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '0', '.'};
+
 void putfonts8_asc_sht(struct Sheet *sht, int bc, int c, int x0, int y0, char *s, int l);
 void set490(struct FIFO32 *fifo, int mode);
+void make_textbox8(struct Sheet *sht, int x0, int y0, int sx, int sy, int c);
+
 void HariMain(void)
 {
     struct BOOTINFO *bootinfo = (struct BOOTINFO *)ADR_BOOTINFO;
@@ -20,6 +29,7 @@ void HariMain(void)
     struct SheetController *sheet_controller;                           // sheet ctl
     struct Sheet *sht_back, *sht_mouse, *sht_win;
     unsigned char *buf_back, buf_mouse[256], *buf_win;
+    int cursor_x, cursor_c;
 
     // initialization
     init_gdtidt();
@@ -34,25 +44,24 @@ void HariMain(void)
     io_out8(PIC0_IMR, 0xf8); /* PIT和PIC1和键盘设置为许可(11111000) */
     io_out8(PIC1_IMR, 0xef); /* 允许鼠标中断（11101111） */
 
-    timer = timer_alloc();
-    timer_init(timer, &fifo, 10); // 10
-    timer_settime(timer, 1000);
-
-    timer2 = timer_alloc();
-    timer_init(timer2, &fifo, 3); // 3
-    timer_settime(timer2, 300);
-
-    timer3 = timer_alloc();
-    timer_init(timer3, &fifo, 1); // 1 & 0
-    timer_settime(timer3, 50);
-
-    set490(&fifo, 1);
-
     // init memory management
     memtotal = mem_test(0x00400000, 0xbfffffff);
     memman_init(memman);
     memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
     memman_free(memman, 0x00400000, memtotal - 0x00400000);
+
+    // init timers
+    timer = timer_alloc();
+    timer_init(timer, &fifo, 10); // 10
+    timer_settime(timer, 1000);
+    timer2 = timer_alloc();
+    timer_init(timer2, &fifo, 3); // 3
+    timer_settime(timer2, 300);
+    timer3 = timer_alloc();
+    timer_init(timer3, &fifo, 1); // 1 & 0
+    timer_settime(timer3, 50);
+
+    set490(&fifo, 1);
 
     // allocate memory
     sheet_controller = shtctl_init(memman, bootinfo->vram, bootinfo->scrnx, bootinfo->scrny);
@@ -70,9 +79,9 @@ void HariMain(void)
     init_screen(buf_back, bootinfo->scrnx, bootinfo->scrny);
     sheet_slide(sht_back, 0, 0);
 
-    // init cursor
+    // init mouse
     sheet_set_buf(sht_mouse, buf_mouse, 16, 16, 99); /* 透明色号99 */
-    init_cursor(buf_mouse, 99);                      /* 透明色号99 */
+    init_mouse_cursor8(buf_mouse, 99);               /* 透明色号99 */
     sheet_slide(sht_mouse, mx, my);
 
     // init window
@@ -93,6 +102,11 @@ void HariMain(void)
 
     sheet_refresh(sht_back, 0, 0, bootinfo->scrnx, 48);
 
+    make_textbox8(sht_win, 8, 28, 144, 16, COL8_FFFFFF);
+    cursor_x = 8;
+    cursor_c = COL8_FFFFFF;
+    sheet_refresh(sht_win, 8, 28, 152, 44);
+
     int i;
     // 无限循环，等待硬件中断
     for (;;)
@@ -105,11 +119,24 @@ void HariMain(void)
             if (256 <= i && i < 512)
             { // keyboard
                 sprintf(s, "%02X", i - 256);
-                putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 16, s, 2);
-                if (i == 0x1e + 256)
+                putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
+                if (i < 0x54 + 256)
                 {
-                    putfonts8_asc_sht(sht_win, COL8_C6C6C6, COL8_000000, 40, 28, "A", 1);
+                    if (keytable[i - 256] != 0 && cursor_x < 144)
+                    {
+                        s[0] = keytable[i - 256];
+                        s[1] = 0;
+                        putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, s, 1);
+                        cursor_x += 8;
+                    }
                 }
+                if (i == 256 + 0x0e && cursor_x > 8)
+                {
+                    putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
+                    cursor_x -= 8;
+                }
+                boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+                sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
             }
             else if (512 <= i && i < 768)
             { // mouse
@@ -122,7 +149,7 @@ void HariMain(void)
                         s[3] = 'R';
                     if ((mdec.button & 0x04) != 0)
                         s[2] = 'C';
-                    putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 32, 16, s, 15);
+                    putfonts8_asc_sht(sht_back, 32, 16, COL8_FFFFFF, COL8_008484, s, 15);
                     // 移动鼠标
                     mx += mdec.x;
                     my += mdec.y;
@@ -135,31 +162,33 @@ void HariMain(void)
                     else if (my > bootinfo->scrny - 1)
                         my = bootinfo->scrny - 1;
                     sprintf(s, "(%3d, %3d)", mx, my);
-                    putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 0, s, 10);
+                    putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
                     sheet_slide(sht_mouse, mx, my); /* 内含 sheet_refresh */
                 }
             }
             else if (i == 10)
             {
-                putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 64, "10[sec]", 7);
+                putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
             }
             else if (i == 3)
             {
-                putfonts8_asc_sht(sht_back, COL8_008484, COL8_FFFFFF, 0, 80, "3[sec]", 6);
+                putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
             }
-            else if (i == 1)
+            else if (i <= 1)
             {
-                timer_init(timer3, &fifo, 0);
-                boxfill8(buf_back, bootinfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
+                if (i)
+                {
+                    timer_init(timer3, &fifo, 0);
+                    cursor_c = COL8_000000;
+                }
+                else
+                {
+                    timer_init(timer3, &fifo, 1);
+                    cursor_c = COL8_FFFFFF;
+                }
                 timer_settime(timer3, 50);
-                sheet_refresh(sht_back, 8, 96, 16, 112);
-            }
-            else if (i == 0)
-            {
-                timer_init(timer3, &fifo, 1);
-                boxfill8(buf_back, bootinfo->scrnx, COL8_008484, 8, 96, 15, 111);
-                timer_settime(timer3, 50);
-                sheet_refresh(sht_back, 8, 96, 16, 112);
+                boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+                sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
             }
         }
         else
@@ -169,7 +198,7 @@ void HariMain(void)
     }
 }
 
-void putfonts8_asc_sht(struct Sheet *sht, int bc, int c, int x0, int y0, char *s, int l)
+void putfonts8_asc_sht(struct Sheet *sht, int x0, int y0, int c, int bc, char *s, int l)
 {
     boxfill8(sht->buf, sht->bxsize, bc, x0, y0, x0 + 8 * l - 1, y0 + 15);
     putfont_asc(sht->buf, sht->bxsize, x0, y0, c, s);
@@ -190,5 +219,20 @@ void set490(struct FIFO32 *fifo, int mode)
             timer_settime(timer, 100 * 60 * 60 * 24 * 50 + i * 100);
         }
     }
+    return;
+}
+
+void make_textbox8(struct Sheet *sht, int x0, int y0, int sx, int sy, int c)
+{
+    int x1 = x0 + sx, y1 = y0 + sy;
+    boxfill8(sht->buf, sht->bxsize, COL8_848484, x0 - 2, y0 - 3, x1 + 1, y0 - 3);
+    boxfill8(sht->buf, sht->bxsize, COL8_848484, x0 - 3, y0 - 3, x0 - 3, y1 + 1);
+    boxfill8(sht->buf, sht->bxsize, COL8_FFFFFF, x0 - 3, y1 + 2, x1 + 1, y1 + 2);
+    boxfill8(sht->buf, sht->bxsize, COL8_FFFFFF, x1 + 2, y0 - 3, x1 + 2, y1 + 2);
+    boxfill8(sht->buf, sht->bxsize, COL8_000000, x0 - 1, y0 - 2, x1 + 0, y0 - 2);
+    boxfill8(sht->buf, sht->bxsize, COL8_000000, x0 - 2, y0 - 2, x0 - 2, y1 + 0);
+    boxfill8(sht->buf, sht->bxsize, COL8_C6C6C6, x0 - 2, y1 + 1, x1 + 0, y1 + 1);
+    boxfill8(sht->buf, sht->bxsize, COL8_C6C6C6, x1 + 1, y0 - 2, x1 + 1, y1 + 1);
+    boxfill8(sht->buf, sht->bxsize, c, x0 - 1, y0 - 1, x1 + 0, y1 + 0);
     return;
 }
