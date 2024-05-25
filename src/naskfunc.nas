@@ -13,7 +13,7 @@
         GLOBAL  _load_gdtr, _load_idtr
         GLOBAL	_asm_inthandler21, _asm_inthandler27, _asm_inthandler2c, _asm_inthandler20
 		EXTERN	_inthandler21, _inthandler27, _inthandler2c, _inthandler20
-		GLOBAL	_load_cr0, _store_cr0, _memtest_sub
+		GLOBAL	_load_cr0, _store_cr0, _memtest_sub, _load_tr, _taskswitch4
 
 [SECTION .text]
 
@@ -197,3 +197,11 @@ _asm_inthandler20:
 		POP		DS
 		POP		ES
 		IRETD
+
+_load_tr: ; void load_tr(int tr);
+		LTR 	[ESP+4] ; tr
+		RET
+
+_taskswitch4: ; void taskswitch4(void);
+		JMP 	4*8:0
+		RET
