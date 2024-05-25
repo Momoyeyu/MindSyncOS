@@ -293,8 +293,8 @@ void make_textbox8(struct Sheet *sht, int x0, int y0, int sx, int sy, int c)
 void task_b_main(struct Sheet *sht_back)
 {
     struct FIFO32 fifo;
-    struct TIMER *timer_ts, *timer_put;
-    int i, fifobuf[128], count = 0;
+    struct TIMER *timer_ts, *timer_put, *timer_1s;
+    int i, fifobuf[128], count = 0, count0 = 0;
     char s[12];
     fifo32_init(&fifo, 128, fifobuf);
     timer_ts = timer_alloc();
@@ -302,7 +302,10 @@ void task_b_main(struct Sheet *sht_back)
     timer_settime(timer_ts, 2);
     timer_put = timer_alloc();
     timer_init(timer_put, &fifo, 1);
-    timer_settime(timer_put, 1);
+    // timer_settime(timer_put, 1);
+    timer_1s = timer_alloc();
+    timer_init(timer_1s, &fifo, 100);
+    timer_settime(timer_1s, 100);
     for (;;)
     {
         count++;
@@ -326,6 +329,15 @@ void task_b_main(struct Sheet *sht_back)
                 farjmp(0, 3 * 8);
                 timer_settime(timer_ts, 2);
             }
+            else if (i == 100)
+            {
+                sprintf(s, "%11d", count - count0);
+                putfonts8_asc_sht(sht_back, 0, 128, COL8_FFFFFF, COL8_008484, s, 11);
+                count0 = count;
+                timer_settime(timer_1s, 100);
+            }
         }
     }
+    // 千万不能return! return本身是用于返回母函数调用该函数的地址，
+    // 但b进程不是由其他函数调用的子函数，所以使用return会出现错误。
 }
