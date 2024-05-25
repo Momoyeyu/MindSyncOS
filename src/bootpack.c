@@ -210,6 +210,7 @@ void HariMain(void)
             else if (i == 10)
             {
                 putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
+                taskswitch4();
             }
             else if (i == 3)
             {
