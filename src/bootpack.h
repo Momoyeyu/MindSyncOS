@@ -32,6 +32,7 @@ void asm_inthandler2c(void);
 void asm_inthandler20(void);
 unsigned int memtest_sub(unsigned int start, unsigned int end);
 void load_tr(int tr);
+void taskswitch3(void);
 void taskswitch4(void);
 
 // -------------------------------------- graphic.c --------------------------------------

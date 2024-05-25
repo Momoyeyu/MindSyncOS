@@ -42,7 +42,7 @@ void HariMain(void)
 
     struct TSS32 tss_a, tss_b;
     struct SegmentDescriptor *gdt = (struct SegmentDescriptor *)ADR_GDT;
-    int task_b_esp;
+    int task_b_esp; // 为任务b声明专用的栈区
 
     // initialization
     init_gdtidt();
@@ -281,8 +281,26 @@ void make_textbox8(struct Sheet *sht, int x0, int y0, int sx, int sy, int c)
 
 void task_b_main(void)
 {
+    struct FIFO32 fifo;
+    struct TIMER *timer;
+    int i, fifobuf[128];
+    fifo32_init(&fifo, 128, fifobuf);
+    timer = timer_alloc();
+    timer_init(timer, &fifo, 1);
+    timer_settime(timer, 500); // 设置定时器5秒
     for (;;)
     {
-        io_hlt();
+        io_cli();
+        if (fifo32_status(&fifo) == 0)
+            io_stihlt();
+        else
+        {
+            i = fifo32_get(&fifo);
+            io_sti();
+            if (i == 1)
+            {                  /*超时时间为5秒 */
+                taskswitch3(); /*返回任务A */
+            }
+        }
     }
 }
