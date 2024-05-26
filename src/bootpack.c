@@ -23,7 +23,7 @@ void HariMain(void)
     struct FIFO32 fifo;
     char s[40];
     int fifobuf[128];
-    struct TIMER *timer, *timer2, *timer3, *timer_ts;
+    struct TIMER *timer, *timer2, *timer3;
     int mx = (bootinfo->scrnx - 16) / 2;
     int my = (bootinfo->scrny - 28 - 16) / 2;
     unsigned int memtotal;
@@ -147,10 +147,7 @@ void HariMain(void)
     tss_b.ds = 1 * 8;
     tss_b.fs = 1 * 8;
     tss_b.gs = 1 * 8;
-
-    timer_ts = timer_alloc();
-    timer_init(timer_ts, &fifo, 2);
-    timer_settime(timer_ts, 2);
+    mt_init();
 
     int i;
     // 无限循环，等待硬件中断
@@ -161,12 +158,7 @@ void HariMain(void)
         {
             i = fifo32_get(&fifo);
             io_sti();
-            if (i == 2)
-            {
-                farjmp(0, 4 * 8);
-                timer_settime(timer_ts, 2);
-            }
-            else if (256 <= i && i < 512)
+            if (256 <= i && i < 512)
             { // keyboard
                 sprintf(s, "%02X", i - 256);
                 putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
@@ -293,27 +285,24 @@ void make_textbox8(struct Sheet *sht, int x0, int y0, int sx, int sy, int c)
 void task_b_main(struct Sheet *sht_back)
 {
     struct FIFO32 fifo;
-    struct TIMER *timer_ts, *timer_put, *timer_1s;
+    struct TIMER *timer_put, *timer_1s;
     int i, fifobuf[128], count = 0, count0 = 0;
     char s[12];
+
     fifo32_init(&fifo, 128, fifobuf);
-    timer_ts = timer_alloc();
-    timer_init(timer_ts, &fifo, 2);
-    timer_settime(timer_ts, 2);
     timer_put = timer_alloc();
     timer_init(timer_put, &fifo, 1);
     // timer_settime(timer_put, 1);
     timer_1s = timer_alloc();
     timer_init(timer_1s, &fifo, 100);
     timer_settime(timer_1s, 100);
+
     for (;;)
     {
         count++;
         io_cli();
         if (fifo32_status(&fifo) == 0)
-        {
             io_sti();
-        }
         else
         {
             i = fifo32_get(&fifo);
@@ -323,11 +312,6 @@ void task_b_main(struct Sheet *sht_back)
                 sprintf(s, "%11d", count);
                 putfonts8_asc_sht(sht_back, 0, 144, COL8_FFFFFF, COL8_008484, s, 11);
                 timer_settime(timer_put, 1);
-            }
-            else if (i == 2)
-            {
-                farjmp(0, 3 * 8);
-                timer_settime(timer_ts, 2);
             }
             else if (i == 100)
             {
