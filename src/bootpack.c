@@ -32,14 +32,14 @@ void HariMain(void)
         'B', 'N', 'M', ',', '.', '/', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '0', '.'};
 
-    struct TASK *task_b;
+    struct TASK *task_a, *task_b;
 
     // initialization
     init_gdtidt();
     init_pic();
     io_sti(); // 初始化完 GDT IDT PIC 之后才开中断
     init_pit();
-    fifo32_init(&fifo, 128, fifobuf);
+    fifo32_init(&fifo, 128, fifobuf, 0);
 
     // init devices
     init_keyboard(&fifo, 256);
@@ -110,7 +110,8 @@ void HariMain(void)
     cursor_c = COL8_FFFFFF;
     sheet_refresh(sht_win, 8, 28, 152, 44);
 
-    task_init(memman);
+    task_a = task_init(memman);
+    fifo.task = task_a;
     task_b = task_alloc();
     task_b->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8; // 此处需要减去8
     *((int *)(task_b->tss.esp + 4)) = (int)sht_back;                      // 手动压入参数
@@ -214,6 +215,7 @@ void HariMain(void)
         }
         else
         {
+            task_sleep(task_a);
             io_stihlt();
         }
     }
@@ -265,7 +267,7 @@ void task_b_main(struct Sheet *sht_back)
     int i, fifobuf[128], count = 0, count0 = 0;
     char s[12];
 
-    fifo32_init(&fifo, 128, fifobuf);
+    fifo32_init(&fifo, 128, fifobuf, 0);
     timer_put = timer_alloc();
     timer_init(timer_put, &fifo, 1);
     // timer_settime(timer_put, 1);

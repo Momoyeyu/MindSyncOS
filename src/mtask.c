@@ -29,6 +29,7 @@ struct TASK *task_init(struct MemoryManager *memman)
     return task;
 }
 
+// 更改标记，添加任务到就绪队列
 struct TASK *task_alloc(void)
 {
     int i;
@@ -59,6 +60,7 @@ struct TASK *task_alloc(void)
     return NULL; /*全部正在使用*/
 }
 
+// 更改标记为活动中，添加任务到就绪队列
 void task_run(struct TASK *task)
 {
     task->flags = 2; /*活动中标志*/
@@ -67,6 +69,7 @@ void task_run(struct TASK *task)
     return;
 }
 
+// 任务按轮盘顺序切换
 void task_switch(void)
 {
     timer_settime(task_timer, 2);
@@ -80,13 +83,38 @@ void task_switch(void)
     return;
 }
 
-void mt_taskswitch(void)
+// 将任务休眠
+void task_sleep(struct TASK *task)
 {
-    if (mt_tr == 3 * 8)
-        mt_tr = 4 * 8;
-    else
-        mt_tr = 3 * 8;
-    timer_settime(mt_timer, 2);
-    farjmp(0, mt_tr);
+    int i;
+    char ts = 0;
+    if (task->flags == 2)
+    { // 只有指定任务处于唤醒状态执行休眠
+        if (task == taskctl->tasks[taskctl->now])
+            ts = 1; // 让当前执行的任务休眠的话，稍后需要进行任务切换
+        for (i = 0; i < taskctl->running; i++)
+        { // 寻找task所在的位置
+            if (taskctl->tasks[i] == task)
+                break;
+        }
+        taskctl->running--;
+        if (i < taskctl->now)
+        { // 当前执行的task标记位要前移
+            taskctl->now--;
+        }
+        for (; i < taskctl->running; i++)
+        { // task之后的任务前移
+            taskctl->tasks[i] = taskctl->tasks[i + 1];
+        }
+        task->flags = 1; // 设置为休眠状态
+        if (ts != 0)
+        { // 需要切换任务
+            if (taskctl->now >= taskctl->running)
+            { // 如果now的值出现异常，则进行修正
+                taskctl->now = 0;
+            }
+            farjmp(0, taskctl->tasks[taskctl->now]->sel);
+        }
+    }
     return;
 }
