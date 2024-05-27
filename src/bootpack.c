@@ -62,7 +62,7 @@ void HariMain(void)
         make_window8(buf_win_b, 144, 52, s, 0);
         task_b[i] = task_alloc();
         task_b[i]->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8; // 此处需要减去8
-        *((int *)(task_b[i]->tss.esp + 4)) = (int)sht_back;                      // 手动压入参数
+        *((int *)(task_b[i]->tss.esp + 4)) = (int)sht_win_b[i];                  // 手动压入参数
         // 为什么不是减去4？因为本来的范围就在（0x01234000～0x01243fff），需要减去4得到0x01243ffc作为栈顶
         // 否则栈顶在0x01244000，超出了范围。由于手动压入了一个参数，需要在减4的基础上再减4，即减8
         task_b[i]->tss.eip = (int)&task_b_main;
@@ -117,8 +117,7 @@ void HariMain(void)
     sheet_updown(sht_mouse, 5);
     sprintf(s, "(%3d, %3d)", mx, my);
     putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
-    sprintf(s, "memory %dMB   free : %dKB",
-            memtotal / (1024 * 1024), memman_total(memman) / 1024);
+    sprintf(s, "memory %dMB   free : %dKB", memtotal >> 20, memman_total(memman) >> 10);
     putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
 
     // 无限循环，等待硬件中断
@@ -202,7 +201,7 @@ void HariMain(void)
         else
         {
             task_sleep(task_a);
-            io_stihlt();
+            io_sti();
         }
     }
 }
@@ -222,17 +221,14 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c)
     return;
 }
 
-void task_b_main(struct SHEET *sht_back)
+void task_b_main(struct SHEET *sht_win_b)
 {
     struct FIFO32 fifo;
-    struct TIMER *timer_put, *timer_1s;
+    struct TIMER *timer_1s;
     int i, fifobuf[128], count = 0, count0 = 0;
     char s[12];
 
     fifo32_init(&fifo, 128, fifobuf, 0);
-    timer_put = timer_alloc();
-    timer_init(timer_put, &fifo, 1);
-    // timer_settime(timer_put, 1);
     timer_1s = timer_alloc();
     timer_init(timer_1s, &fifo, 100);
     timer_settime(timer_1s, 100);
@@ -241,26 +237,20 @@ void task_b_main(struct SHEET *sht_back)
     {
         count++;
         io_cli();
-        if (fifo32_status(&fifo) == 0)
-            io_sti();
-        else
+        if (fifo32_status(&fifo))
         {
             i = fifo32_get(&fifo);
             io_sti();
-            if (i == 1)
-            { // 降低刷新频率，提高程序运行效率
-                sprintf(s, "%11d", count);
-                putfonts8_asc_sht(sht_back, 0, 144, COL8_FFFFFF, COL8_008484, s, 11);
-                timer_settime(timer_put, 1);
-            }
-            else if (i == 100)
+            if (i == 100)
             {
                 sprintf(s, "%11d", count - count0);
-                putfonts8_asc_sht(sht_back, 0, 128, COL8_FFFFFF, COL8_008484, s, 11);
+                putfonts8_asc_sht(sht_win_b, 24, 28, COL8_000000, COL8_C6C6C6, s, 11);
                 count0 = count;
                 timer_settime(timer_1s, 100);
             }
         }
+        else
+            io_sti();
     }
     // 千万不能return! return本身是用于返回母函数调用该函数的地址，
     // 但b进程不是由其他函数调用的子函数，所以使用return会出现错误。
