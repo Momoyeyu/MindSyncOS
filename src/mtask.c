@@ -19,7 +19,8 @@ struct TASK *task_init(struct MEMMAN *memman)
         set_segmdesc(gdt + TASK_GDT0 + i, 103, (int)&taskctl->tasks0[i].tss, AR_TSS32);
     }
     task = task_alloc();
-    task->flags = 2; // 活动中标志
+    task->flags = 2;    // 活动中标志
+    task->priority = 2; // 0.02s
     taskctl->running = 1;
     taskctl->now = 0;
     taskctl->tasks[0] = task;
@@ -60,26 +61,31 @@ struct TASK *task_alloc(void)
     return NULL; /*全部正在使用*/
 }
 
-// 更改标记为活动中，添加任务到就绪队列
-void task_run(struct TASK *task)
+// 更改标记为活动中，设置优先级，添加任务到就绪队列
+void task_run(struct TASK *task, int priority)
 {
-    task->flags = 2; /*活动中标志*/
-    taskctl->tasks[taskctl->running] = task;
-    taskctl->running++;
+    if (priority > 0)
+        task->priority = priority; // 设置优先级
+    if (task->flags != 2)
+    { // 防止重复注册
+        task->flags = 2;
+        taskctl->tasks[taskctl->running] = task;
+        taskctl->running++;
+    }
     return;
 }
 
 // 任务按轮盘顺序切换
 void task_switch(void)
 {
-    timer_settime(task_timer, 2);
-    if (taskctl->running >= 2)
-    {
-        taskctl->now++;
-        if (taskctl->now == taskctl->running)
-            taskctl->now = 0;
+    struct TASK *task;
+    taskctl->now++;
+    if (taskctl->now == taskctl->running)
+        taskctl->now = 0;
+    task = taskctl->tasks[taskctl->now];
+    timer_settime(task_timer, task->priority);
+    if (taskctl->running > 1) // 检测是否需要切换
         farjmp(0, taskctl->tasks[taskctl->now]->sel);
-    }
     return;
 }
 
