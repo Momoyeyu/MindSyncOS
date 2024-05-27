@@ -2,7 +2,7 @@
 
 #include "bootpack.h"
 
-unsigned int mem_test(unsigned int start, unsigned int end)
+unsigned int memtest(unsigned int start, unsigned int end)
 {
     char flg486 = 0;
     unsigned int eflags_cache, cr0, i;
@@ -36,7 +36,7 @@ unsigned int mem_test(unsigned int start, unsigned int end)
     return i;
 }
 
-void memman_init(struct MemoryManager *manager)
+void memman_init(struct MEMMAN *manager)
 {
     manager->frees = 0;    /* 可用信息数目 */
     manager->maxfrees = 0; /* 用于观察可用状况：frees的最大值 */
@@ -45,7 +45,7 @@ void memman_init(struct MemoryManager *manager)
     return;
 }
 
-unsigned int memman_available(struct MemoryManager *manager) /* 报告空余内存大小的合计 */
+unsigned int memman_total(struct MEMMAN *manager) /* 报告空余内存大小的合计 */
 {
     unsigned int i, total = 0;
     for (i = 0; i < manager->frees; i++)
@@ -55,7 +55,7 @@ unsigned int memman_available(struct MemoryManager *manager) /* 报告空余内�
     return total;
 }
 
-unsigned int memman_alloc(struct MemoryManager *manager, unsigned int size) /* 分配 */
+unsigned int memman_alloc(struct MEMMAN *manager, unsigned int size) /* 分配 */
 {
     unsigned int i, a;
     for (i = 0; i < manager->frees; i++)
@@ -81,7 +81,7 @@ unsigned int memman_alloc(struct MemoryManager *manager, unsigned int size) /* �
     return 0; /* 没有可用空间 */
 }
 
-int memman_free(struct MemoryManager *manager, unsigned int addr, unsigned int size)
+int memman_free(struct MEMMAN *manager, unsigned int addr, unsigned int size)
 /* 释放 */
 {
     int i, j;
@@ -151,7 +151,7 @@ int memman_free(struct MemoryManager *manager, unsigned int addr, unsigned int s
     return -1; /* 失败 */
 }
 
-unsigned int memman_alloc_4k(struct MemoryManager *manager, unsigned int size)
+unsigned int memman_alloc_4k(struct MEMMAN *manager, unsigned int size)
 {
     unsigned int addr;
     size = (size + 0xfff) & 0xfffff000;
@@ -159,7 +159,7 @@ unsigned int memman_alloc_4k(struct MemoryManager *manager, unsigned int size)
     return addr;
 }
 
-int memman_free_4k(struct MemoryManager *manager, unsigned int addr, unsigned int size)
+int memman_free_4k(struct MEMMAN *manager, unsigned int addr, unsigned int size)
 {
     unsigned int addr;
     size = (size + 0xfff) & 0xfffff000;

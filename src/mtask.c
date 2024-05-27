@@ -6,11 +6,11 @@ struct TIMER *task_timer;
 struct TIMER *mt_timer;
 int mt_tr;
 
-struct TASK *task_init(struct MemoryManager *memman)
+struct TASK *task_init(struct MEMMAN *memman)
 {
     int i;
     struct TASK *task;
-    struct SegmentDescriptor *gdt = (struct SegmentDescriptor *)ADR_GDT;
+    struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *)ADR_GDT;
     taskctl = (struct TASKCTL *)memman_alloc_4k(memman, sizeof(struct TASKCTL));
     for (i = 0; i < MAX_TASKS; i++)
     {

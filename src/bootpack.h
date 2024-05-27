@@ -26,15 +26,66 @@ void load_gdtr(int limit, int addr);
 void load_idtr(int limit, int addr);
 int load_cr0(void);
 void store_cr0(int cr0);
+void load_tr(int tr);
+void asm_inthandler20(void);
 void asm_inthandler21(void);
 void asm_inthandler27(void);
 void asm_inthandler2c(void);
-void asm_inthandler20(void);
 unsigned int memtest_sub(unsigned int start, unsigned int end);
-void load_tr(int tr);
-void taskswitch3(void);
-void taskswitch4(void);
 void farjmp(int eip, int cs);
+
+// -------------------------------------- memory.c --------------------------------------
+#define EFLAGS_AC_BIT 0x00040000
+#define CR0_CACHE_DISABLE 0x60000000
+#define MEMMAN_FREES 4090 /* 大约是32KB*/
+#define MEMMAN_ADDR 0x003c0000
+
+struct FREEINFO
+{ /* 可用信息 */
+    unsigned int addr, size;
+};
+
+struct MEMMAN
+{ /* 内存管理 */
+    int frees, maxfrees, lostsize, losts;
+    struct FREEINFO free[MEMMAN_FREES];
+};
+
+unsigned int memtest(unsigned int start, unsigned int end);
+void memman_init(struct MEMMAN *manager);
+unsigned int memman_total(struct MEMMAN *manager);
+unsigned int memman_alloc(struct MEMMAN *manager, unsigned int size);
+int memman_free(struct MEMMAN *manager, unsigned int addr, unsigned int size);
+unsigned int memman_alloc_4k(struct MEMMAN *manager, unsigned int size);
+int memman_free_4k(struct MEMMAN *manager, unsigned int addr, unsigned int size);
+
+// -------------------------------------- sheet.c --------------------------------------
+#define MAX_SHEETS 256
+#define SHEET_FREE 0
+#define SHEET_USED 1
+
+struct SHEET
+{
+    unsigned char *buf;
+    int bxsize, bysize, vx0, vy0, color, layer, flags;
+    struct SHTCTL *controller;
+};
+
+struct SHTCTL
+{
+    unsigned char *vram, *map;
+    int xsize, ysize, top;
+    struct SHEET *sheets_ptr[MAX_SHEETS];
+    struct SHEET sheets_data[MAX_SHEETS];
+};
+
+struct SHTCTL *shtctl_init(struct MEMMAN *manager, unsigned char *vram, int xsize, int ysize);
+struct SHEET *sheet_alloc(struct SHTCTL *ctl);
+void sheet_setbuf(struct SHEET *sheet, unsigned char *buf, int xsize, int ysize, int color);
+void sheet_updown(struct SHEET *sheet, int layer);
+void sheet_refresh(struct SHEET *sheet, int bx0, int by0, int bx1, int by1);
+void sheet_slide(struct SHEET *sheet, int new_vx0, int new_vy0);
+void sheet_free(struct SHEET *sheet);
 
 // -------------------------------------- graphic.c --------------------------------------
 void init_palette(void);
@@ -42,10 +93,11 @@ void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
 void init_screen8(char *vram, int x, int y);
 void putfont8(char *vram, int xsize, int x, int y, char c, char *font);
-void putfont_asc(char *vram, int xsize, int x, int y, char c, char *s);
+void putfonts8_asc(char *vram, int xsize, int x, int y, char c, char *s);
 void init_mouse_cursor8(char *mouse, char bc);
 void putblock8(char *vram, int xsize, int x, int y, char *buf, int width, int height);
-void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act);
+void putfonts8_asc_sht(struct SHEET *sht, int x0, int y0, int c, int bc, char *s, int l);
 
 // 定义了一些颜色常量，用于在函数中指定颜色
 #define COL8_000000 0  // 黑
@@ -77,21 +129,21 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 #define AR_INTGATE32 0x008e
 #define AR_TSS32 0x0089
 
-struct SegmentDescriptor
+struct SEGMENT_DESCRIPTOR
 {
     short limit_low, base_low;
     char base_mid, access_right;
     char limit_high, base_high;
 };
-struct GateDescriptor
+struct GATE_DESCRIPTOR
 {
     short offset_low, selector;
     char dw_count, access_right;
     short offset_high;
 };
 void init_gdtidt(void);
-void set_segmdesc(struct SegmentDescriptor *sd, unsigned int limit, int base, int ar);
-void set_gatedesc(struct GateDescriptor *gd, int offset, int selector, int ar);
+void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base, int ar);
+void set_gatedesc(struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar);
 
 // -------------------------------------- int.c --------------------------------------
 #define PIC0_ICW1 0x0020
@@ -140,69 +192,15 @@ void inthandler21(int *esp);
 #define KEYCMD_SENDTO_MOUSE 0xd4
 #define MOUSECMD_ENABLE 0xf4
 
-struct MouseDescriptor
+struct MOUSE_DEC
 {
     unsigned char buf[3], phase;
-    int x, y, button;
+    int x, y, btn;
 };
 
-void enable_mouse(struct FIFO32 *fifo, int data0, struct MouseDescriptor *mdec);
-int mouse_decode(struct MouseDescriptor *mdec, unsigned char dat);
+void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec);
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
 void inthandler2c(int *esp);
-
-// -------------------------------------- memory.c --------------------------------------
-#define EFLAGS_AC_BIT 0x00040000
-#define CR0_CACHE_DISABLE 0x60000000
-#define MEMMAN_FREES 4090 /* 大约是32KB*/
-#define MEMMAN_ADDR 0x003c0000
-
-struct FreeInfo
-{ /* 可用信息 */
-    unsigned int addr, size;
-};
-
-struct MemoryManager
-{ /* 内存管理 */
-    int frees, maxfrees, lostsize, losts;
-    struct FreeInfo free[MEMMAN_FREES];
-};
-
-unsigned int mem_test(unsigned int start, unsigned int end);
-void memman_init(struct MemoryManager *manager);
-unsigned int memman_available(struct MemoryManager *manager);
-unsigned int memman_alloc(struct MemoryManager *manager, unsigned int size);
-int memman_free(struct MemoryManager *manager, unsigned int addr, unsigned int size);
-unsigned int memman_alloc_4k(struct MemoryManager *manager, unsigned int size);
-int memman_free_4k(struct MemoryManager *manager, unsigned int addr, unsigned int size);
-
-// -------------------------------------- sheet.c --------------------------------------
-#define MAX_SHEETS 256
-#define SHEET_FREE 0
-#define SHEET_USED 1
-
-struct Sheet
-{
-    unsigned char *buf;
-    int bxsize, bysize, vx0, vy0, color, layer, flags;
-    struct SheetController *controller;
-};
-
-struct SheetController
-{
-    unsigned char *vram, *map;
-    int xsize, ysize, top;
-    struct Sheet *sheets_ptr[MAX_SHEETS];
-    struct Sheet sheets_data[MAX_SHEETS];
-};
-
-struct SheetController *shtctl_init(struct MemoryManager *manager, unsigned char *vram, int xsize, int ysize);
-struct Sheet *sheet_alloc(struct SheetController *ctl);
-void sheet_set_buf(struct Sheet *sheet, unsigned char *buf, int xsize, int ysize, int color);
-void sheet_set_layer(struct Sheet *sheet, int layer);
-void sheet_refresh(struct Sheet *sheet, int bx0, int by0, int bx1, int by1);
-void sheet_slide(struct Sheet *sheet, int new_vx0, int new_vy0);
-void sheet_free(struct Sheet *sheet);
-void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1, int h0, int h1);
 
 // -------------------------------------- timer.c --------------------------------------
 #define PIT_CTRL 0x0043
@@ -262,7 +260,7 @@ struct TASKCTL
 extern struct TASKCTL *taskctl;
 extern struct TIMER *task_timer;
 
-struct TASK *task_init(struct MemoryManager *memman);
+struct TASK *task_init(struct MEMMAN *memman);
 struct TASK *task_alloc(void);
 void task_run(struct TASK *task);
 void task_switch(void);

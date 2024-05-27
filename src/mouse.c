@@ -6,7 +6,7 @@
 struct FIFO32 *mousefifo;
 int mousedata0;
 
-void enable_mouse(struct FIFO32 *fifo, int data0, struct MouseDescriptor *mdec)
+void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec)
 {
     mousefifo = fifo;
     mousedata0 = data0;
@@ -18,7 +18,7 @@ void enable_mouse(struct FIFO32 *fifo, int data0, struct MouseDescriptor *mdec)
     return;
 }
 
-int mouse_decode(struct MouseDescriptor *mdec, unsigned char dat)
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
 {
     switch (mdec->phase)
     {
@@ -40,7 +40,7 @@ int mouse_decode(struct MouseDescriptor *mdec, unsigned char dat)
     case 3:
         mdec->buf[2] = dat;
         mdec->phase = 1;
-        mdec->button = mdec->buf[0] & 0x07;
+        mdec->btn = mdec->buf[0] & 0x07;
         mdec->x = mdec->buf[1];
         mdec->y = mdec->buf[2];
         if ((mdec->buf[0] & 0x10) != 0)

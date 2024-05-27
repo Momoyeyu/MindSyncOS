@@ -64,7 +64,7 @@ void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, i
     return;
 }
 
-void init_screen(char *vram, int xsize, int ysize)
+void init_screen8(char *vram, int xsize, int ysize)
 {
     // 使用boxfill8函数填充屏幕区域，指定颜色和坐标范围
     boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 29); // background color
@@ -84,8 +84,8 @@ void init_screen(char *vram, int xsize, int ysize)
     boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 24, xsize - 3, ysize - 3);
     int mw = (xsize - 8 * 11) / 2;
     int mh = (ysize - 28 - 16) / 2;
-    putfont_asc(vram, xsize, mw + 1, mh + 1, COL8_000000, "Momoyeyu OS");
-    putfont_asc(vram, xsize, mw, mh, COL8_FFFFFF, "Momoyeyu OS");
+    putfonts8_asc(vram, xsize, mw + 1, mh + 1, COL8_000000, "Momoyeyu OS");
+    putfonts8_asc(vram, xsize, mw, mh, COL8_FFFFFF, "Momoyeyu OS");
     return;
 }
 
@@ -117,7 +117,7 @@ void putfont8(char *vram, int xsize, int x, int y, char c, char *font)
     return;
 }
 
-void putfont_asc(char *vram, int xsize, int x, int y, char c, char *s)
+void putfonts8_asc(char *vram, int xsize, int x, int y, char c, char *s)
 {
     extern char hankaku[4096];
     for (; *s != 0; s++)
@@ -176,7 +176,7 @@ void putblock8(char *vram, int xsize, int x, int y, char *buf, int width, int he
     return;
 }
 
-void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act)
 {
     static char closebtn[14][16] = {
         "OOOOOOOOOOOOOOO@",
@@ -194,7 +194,17 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
         "O$$$$$$$$$$$$$$@",
         "@@@@@@@@@@@@@@@@"};
     int x, y;
-    char c;
+    char c, tc, tbc;
+    if (act != 0)
+    {
+        tc = COL8_FFFFFF;
+        tbc = COL8_000084;
+    }
+    else
+    {
+        tc = COL8_C6C6C6;
+        tbc = COL8_848484;
+    }
     boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, xsize - 1, 0);
     boxfill8(buf, xsize, COL8_FFFFFF, 1, 1, xsize - 2, 1);
     boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, 0, ysize - 1);
@@ -202,25 +212,41 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title)
     boxfill8(buf, xsize, COL8_848484, xsize - 2, 1, xsize - 2, ysize - 2);
     boxfill8(buf, xsize, COL8_000000, xsize - 1, 0, xsize - 1, ysize - 1);
     boxfill8(buf, xsize, COL8_C6C6C6, 2, 2, xsize - 3, ysize - 3);
-    boxfill8(buf, xsize, COL8_000084, 3, 3, xsize - 4, 20);
+    boxfill8(buf, xsize, tbc, 3, 3, xsize - 4, 20);
     boxfill8(buf, xsize, COL8_848484, 1, ysize - 2, xsize - 2, ysize - 2);
     boxfill8(buf, xsize, COL8_000000, 0, ysize - 1, xsize - 1, ysize - 1);
-    putfont_asc(buf, xsize, 24, 4, COL8_FFFFFF, title);
+    putfonts8_asc(buf, xsize, 24, 4, tc, title);
     for (y = 0; y < 14; y++)
     {
         for (x = 0; x < 16; x++)
         {
             c = closebtn[y][x];
             if (c == '@')
+            {
                 c = COL8_000000;
+            }
             else if (c == '$')
+            {
                 c = COL8_848484;
+            }
             else if (c == 'Q')
+            {
                 c = COL8_C6C6C6;
+            }
             else
+            {
                 c = COL8_FFFFFF;
+            }
             buf[(5 + y) * xsize + (xsize - 21 + x)] = c;
         }
     }
+    return;
+}
+
+void putfonts8_asc_sht(struct SHEET *sht, int x0, int y0, int c, int bc, char *s, int l)
+{
+    boxfill8(sht->buf, sht->bxsize, bc, x0, y0, x0 + 8 * l - 1, y0 + 15);
+    putfonts8_asc(sht->buf, sht->bxsize, x0, y0, c, s);
+    sheet_refresh(sht, x0, y0, x0 + 8 * l, y0 + 16);
     return;
 }

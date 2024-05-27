@@ -3,17 +3,17 @@
 #include "bootpack.h"
 #include <stdio.h>
 
-struct SheetController *shtctl_init(struct MemoryManager *manager, unsigned char *vram, int xsize, int ysize)
+struct SHTCTL *shtctl_init(struct MEMMAN *manager, unsigned char *vram, int xsize, int ysize)
 {
-    struct SheetController *controller;
+    struct SHTCTL *controller;
     int i;
-    controller = (struct SheetController *)memman_alloc_4k(manager, sizeof(struct SheetController));
+    controller = (struct SHTCTL *)memman_alloc_4k(manager, sizeof(struct SHTCTL));
     if (controller == NULL)
         return NULL;
     controller->map = (unsigned char *)memman_alloc_4k(manager, xsize * ysize);
     if (controller->map == NULL)
     {
-        memman_free_4k(manager, (int)controller, sizeof(struct SheetController));
+        memman_free_4k(manager, (int)controller, sizeof(struct SHTCTL));
         return NULL;
     }
     controller->vram = vram;
@@ -28,9 +28,9 @@ struct SheetController *shtctl_init(struct MemoryManager *manager, unsigned char
     return controller;
 }
 
-struct Sheet *sheet_alloc(struct SheetController *controller)
+struct SHEET *sheet_alloc(struct SHTCTL *controller)
 {
-    struct Sheet *sheet;
+    struct SHEET *sheet;
     int i;
     for (i = 0; i < MAX_SHEETS; i++)
     {
@@ -45,7 +45,7 @@ struct Sheet *sheet_alloc(struct SheetController *controller)
     return NULL; // allocation failed
 }
 
-void sheet_set_buf(struct Sheet *sheet, unsigned char *buf, int xsize, int ysize, int color)
+void sheet_setbuf(struct SHEET *sheet, unsigned char *buf, int xsize, int ysize, int color)
 {
     sheet->buf = buf;
     sheet->bxsize = xsize;
@@ -54,9 +54,9 @@ void sheet_set_buf(struct Sheet *sheet, unsigned char *buf, int xsize, int ysize
     return;
 }
 
-void sheet_set_layer(struct Sheet *sheet, int layer)
+void sheet_updown(struct SHEET *sheet, int layer)
 {
-    struct SheetController *controller = sheet->controller;
+    struct SHTCTL *controller = sheet->controller;
     int old = sheet->layer; /* 存储设置前的图层信息 */
     /* 如果指定的图层过高或过低，则进行修正 */
     if (layer > controller->top + 1)
@@ -118,16 +118,16 @@ void sheet_set_layer(struct Sheet *sheet, int layer)
     return;
 }
 
-void sheet_refresh(struct Sheet *sheet, int bx0, int by0, int bx1, int by1)
+void sheet_refresh(struct SHEET *sheet, int bx0, int by0, int bx1, int by1)
 {
     if (sheet->layer >= 0)
         sheet_refresh_sub(sheet->controller, sheet->vx0 + bx0, sheet->vy0 + by0, sheet->vx0 + bx1, sheet->vy0 + by1, sheet->layer, sheet->layer);
     return;
 }
 
-void sheet_slide(struct Sheet *sheet, int new_vx0, int new_vy0)
+void sheet_slide(struct SHEET *sheet, int new_vx0, int new_vy0)
 {
-    struct SheetController *controller = sheet->controller;
+    struct SHTCTL *controller = sheet->controller;
     int old_x = sheet->vx0;
     int old_y = sheet->vy0;
     sheet->vx0 = new_vx0;
@@ -143,21 +143,21 @@ void sheet_slide(struct Sheet *sheet, int new_vx0, int new_vy0)
     return;
 }
 
-void sheet_free(struct Sheet *sheet)
+void sheet_free(struct SHEET *sheet)
 {
     if (sheet->layer >= 0)
-        sheet_set_layer(sheet, -1); // 隐藏
-    sheet->flags = SHEET_FREE;      // 标志释放
+        sheet_updown(sheet, -1); // 隐藏
+    sheet->flags = SHEET_FREE;   // 标志释放
     return;
 }
 
 // 只更新 [(vx0, vy0), (vx1, vy1)) 内的显存
-void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1, int h0, int h1)
+void sheet_refresh_sub(struct SHTCTL *controller, int vx0, int vy0, int vx1, int vy1, int h0, int h1)
 {
     int h, bx, by, vx, vy;
     int bx0, bx1, by0, by1;
     unsigned char *buf, c, *vram = controller->vram, *map = controller->map, sid;
-    struct Sheet *sheet;
+    struct SHEET *sheet;
     if (vx0 < 0)
         vx0 = 0;
     if (vy0 < 0)
@@ -202,11 +202,11 @@ void sheet_refresh_sub(struct SheetController *controller, int vx0, int vy0, int
     return;
 }
 
-void sheet_refresh_map(struct SheetController *controller, int vx0, int vy0, int vx1, int vy1, int h0)
+void sheet_refresh_map(struct SHTCTL *controller, int vx0, int vy0, int vx1, int vy1, int h0)
 {
     int h, bx, by, vx, vy, bx0, by0, bx1, by1;
     unsigned char *buf, sid, *map = controller->map;
-    struct Sheet *sht;
+    struct SHEET *sht;
     if (vx0 < 0)
         vx0 = 0;
     if (vy0 < 0)

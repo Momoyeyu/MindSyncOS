@@ -4,8 +4,8 @@
 
 void init_gdtidt(void)
 {
-    struct SegmentDescriptor *gdt = (struct SegmentDescriptor *)ADR_GDT;
-    struct GateDescriptor *idt = (struct GateDescriptor *)ADR_IDT;
+    struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *)ADR_GDT;
+    struct GATE_DESCRIPTOR *idt = (struct GATE_DESCRIPTOR *)ADR_IDT;
     int i;
 
     // init GDT
@@ -32,7 +32,7 @@ void init_gdtidt(void)
     return;
 }
 
-void set_segmdesc(struct SegmentDescriptor *sd, unsigned int limit, int base, int ar)
+void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base, int ar)
 {
     if (limit > 0xfffff)
     {
@@ -48,7 +48,7 @@ void set_segmdesc(struct SegmentDescriptor *sd, unsigned int limit, int base, in
     return;
 }
 
-void set_gatedesc(struct GateDescriptor *gd, int offset, int selector, int ar)
+void set_gatedesc(struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar)
 {
     gd->offset_low = offset & 0xffff;
     gd->selector = selector;
