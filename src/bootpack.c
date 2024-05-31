@@ -4,7 +4,6 @@
 #include "bootpack.h"
 
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
-
 void task_b_main(struct SHEET *sht_back);
 
 void HariMain(void)
@@ -50,8 +49,9 @@ void HariMain(void)
     // ---------------------------------- 显示部分 ----------------------------------
     init_palette();
     shtctl = shtctl_init(memman, bootinfo->vram, bootinfo->scrnx, bootinfo->scrny);
-    task_a = task_init(memman);
+    task_a = task_init(memman); // 获取Harimain任务
     fifo.task = task_a;
+    task_run(task_a, 1, 0); // 改变优先级
 
     for (i = 0; i < 3; i++)
     {
@@ -72,7 +72,7 @@ void HariMain(void)
         task_b[i]->tss.ds = 1 * 8;
         task_b[i]->tss.fs = 1 * 8;
         task_b[i]->tss.gs = 1 * 8;
-        task_run(task_b[i], i + 1);
+        task_run(task_b[i], 2, i + 1);
     }
 
     // init screen
