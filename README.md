@@ -1,3 +1,13 @@
+# 项目说明
+- 此项目正在开发一个名为MindSyncOS的操作系统。现暂时用于完成北邮操作系统课程作业，如后续有机会将会继续开发。
+- This project is developing an operating system called MindSyncOS. It is currently used to complete the homework for the operating system course of BUPT, and will continue to be developed if there is an opportunity in the future.
+## 个人信息验证（王老师看这里！）
+- 姓名：苏俊杰
+- 学号：2022211607
+- 班级：2022211807
+
+以下为MindSyncOS的哲学理念与未来展望
+
 # MindSyncOS - The Cognitive Companion for Your Digital Workflow
 Welcome to the repository for MindSyncOS, an innovative operating system designed to elevate the way you interact with your digital workspace. Our philosophy is centered around three core principles: Intelligence, Synchronization, and Personalization.
 
