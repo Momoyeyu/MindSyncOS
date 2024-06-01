@@ -13,6 +13,7 @@ void HariMain(void)
     char s[40];
     int fifobuf[128];
     int mx, my, i, cursor_x, cursor_c;
+    int key_to = 0;
     unsigned int memtotal;
     struct MOUSE_DEC mdec;
     struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
@@ -126,7 +127,7 @@ void HariMain(void)
                 sprintf(s, "%02X", i - 256);
                 putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
                 if (i < 0x54 + 256)
-                {
+                { // 打字输入
                     if (keytable[i - 256] != 0 && cursor_x < 128)
                     {
                         s[0] = keytable[i - 256];
@@ -136,9 +137,26 @@ void HariMain(void)
                     }
                 }
                 if (i == 256 + 0x0e && cursor_x > 8)
-                {
+                { // 退格键
                     putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
                     cursor_x -= 8;
+                }
+                if (i == 256 + 0x0f)
+                { // Tab 键
+                    if (key_to == 0)
+                    {
+                        key_to = 1;
+                        make_wtitle8(buf_win, sht_win->bxsize, "task_a", 0);
+                        make_wtitle8(buf_cons, sht_cons->bxsize, "console", 1);
+                    }
+                    else
+                    {
+                        key_to = 0;
+                        make_wtitle8(buf_win, sht_win->bxsize, "task_a", 1);
+                        make_wtitle8(buf_cons, sht_cons->bxsize, "console", 0);
+                    }
+                    sheet_refresh(sht_win, 0, 0, sht_win->bxsize, 21);
+                    sheet_refresh(sht_cons, 0, 0, sht_cons->bxsize, 21);
                 }
                 boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
                 sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
