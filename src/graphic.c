@@ -84,8 +84,8 @@ void init_screen8(char *vram, int xsize, int ysize)
     boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 24, xsize - 3, ysize - 3);
     int mw = (xsize - 8 * 11) / 2;
     int mh = (ysize - 28 - 16) / 2;
-    putfonts8_asc(vram, xsize, mw + 1, mh + 1, COL8_000000, "Momoyeyu OS");
-    putfonts8_asc(vram, xsize, mw, mh, COL8_FFFFFF, "Momoyeyu OS");
+    putfonts8_asc(vram, xsize, mw + 1, mh + 1, COL8_000000, "MindSync OS");
+    putfonts8_asc(vram, xsize, mw, mh, COL8_FFFFFF, "MindSync OS");
     return;
 }
 
