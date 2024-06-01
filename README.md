@@ -3,14 +3,14 @@
 - 此项目正在开发一个名为MindSyncOS的操作系统。现暂时用于完成北邮操作系统课程作业，如后续有机会将会继续开发。
 - This project is developing an operating system called MindSyncOS. It is currently used to complete the homework for the operating system course of BUPT, and will continue to be developed if there is an opportunity in the future.
 
-## 个人信息验证（王老师看这里！）
+## 个人信息验证
 
 - 姓名：苏俊杰
 - 学号：2022211607
 - 班级：2022211807
 
 ## 系统运行说明
-
+- 请使用`Windows`运行此项目，因为依赖的构建工具是`exe`格式。如果需要在`Linux`运行，请自行安装依赖。
 - 请在拉取仓库后，打开命令行，进入 `src`目录，输入 `make run`即可运行操作系统
 - `Windows`用户请使用 `git bash`命令行工具，否则可能会出现错误
 
