@@ -53,6 +53,8 @@ haribote.img : ipl.bin haribote.sys Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:ipl.bin len:512 from:0 to:0 \
 		copy from:haribote.sys to:@: \
+		copy from:ipl.nas to:@: \
+		copy from:make.bat to:@: \
 		imgout:haribote.img
 
 # 通用 Make 规则

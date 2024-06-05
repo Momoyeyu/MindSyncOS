@@ -3,6 +3,7 @@
 
 // -------------------------------------- asmhead.nas --------------------------------------
 #define ADR_BOOTINFO 0x00000ff0
+#define ADR_DISKIMG 0x00100000
 struct BOOTINFO
 {               /* 0x0ff0-0x0fff */
     char cyls;  /* boot sector 读到 disk 的哪里（范围） */
