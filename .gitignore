@@ -13,3 +13,7 @@ z_tools/qemu/fdimage0.bin
 *.bim
 *.hrb
 *.sys
+
+# no markdown docs, only pdf
+docs/系统信息.md
+docs/image/
