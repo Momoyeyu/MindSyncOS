@@ -342,6 +342,7 @@ void console_task(struct SHEET *sheet)
     struct TASK *task = task_now(); // 获取自身内存地址
     int i, fifobuf[128], cursor_x = 24, cursor_y = 28, cursor_c = -1;
     char s[2];
+    int x, y;
 
     fifo32_init(&task->fifo, 128, fifobuf, task);
     timer = timer_alloc();
@@ -397,13 +398,25 @@ void console_task(struct SHEET *sheet)
                 }
                 else if (i == 10 + 256)
                 { // 换行，空格结尾，下一行开头打印提示符>
+                    putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, " ", 1);
                     if (cursor_y < 28 + 112)
-                    {
-                        putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, " ", 1);
                         cursor_y += 16;
-                        putfonts8_asc_sht(sheet, 8, cursor_y, COL8_FFFFFF, COL8_000000, "> ", 2);
-                        cursor_x = 24;
+                    else
+                    { // 窗口自动滚动
+                        for (y = 28; y < 28 + 112; y++)
+                        {
+                            for (x = 16; x < 248; x++)
+                                sheet->buf[x + y * sheet->bxsize] = sheet->buf[x + (y + 16) * sheet->bxsize];
+                        }
+                        for (y = 28 + 112; y < 28 + 128; y++)
+                        {
+                            for (x = 16; x < 248; x++)
+                                sheet->buf[x + y * sheet->bxsize] = COL8_000000;
+                        }
+                        sheet_refresh(sheet, 16, 28, 248, 28 + 128);
                     }
+                    putfonts8_asc_sht(sheet, 8, cursor_y, COL8_FFFFFF, COL8_000000, "> ", 2);
+                    cursor_x = 24;
                 }
                 else
                 { // 一般字符
