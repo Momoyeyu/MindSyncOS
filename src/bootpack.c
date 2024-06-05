@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include "bootpack.h"
+#define KEYCMD_LED 0xed
 
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
 void console_task(struct SHEET *sheet);
@@ -9,9 +10,9 @@ void console_task(struct SHEET *sheet);
 void HariMain(void)
 {
     struct BOOTINFO *bootinfo = (struct BOOTINFO *)ADR_BOOTINFO;
-    struct FIFO32 fifo;
+    struct FIFO32 fifo, keycmd;
     char s[40];
-    int fifobuf[128];
+    int fifobuf[128], keycmd_buf[32];
     int mx, my, i, cursor_x, cursor_c;
     unsigned int memtotal;
     struct MOUSE_DEC mdec;
@@ -39,7 +40,7 @@ void HariMain(void)
     struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_cons;
     struct TASK *task_a, *task_cons;
     struct TIMER *timer;
-    int key_to = 0, key_shift = 0, key_leds = (bootinfo->leds >> 4) & 7;
+    int key_to = 0, key_shift = 0, key_leds = (bootinfo->leds >> 4) & 7, keycmd_wait = -1;
 
     // initialization
     init_gdtidt();
@@ -47,6 +48,7 @@ void HariMain(void)
     io_sti(); // 初始化完 GDT IDT PIC 之后才开中断
     init_pit();
     fifo32_init(&fifo, 128, fifobuf, 0);
+    fifo32_init(&keycmd, 32, keycmd_buf, 0);
     init_keyboard(&fifo, 256);
     enable_mouse(&fifo, 512, &mdec);
     io_out8(PIC0_IMR, 0xf8); // PIT和PIC1和键盘设置为许可(11111000)
@@ -125,9 +127,19 @@ void HariMain(void)
     sprintf(s, "memory %dMB   free : %dKB", memtotal >> 20, memman_total(memman) >> 10);
     putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
 
+    /*为了避免和键盘当前状态冲突，在一开始先进行设置*/
+    fifo32_put(&keycmd, KEYCMD_LED);
+    fifo32_put(&keycmd, key_leds);
+
     // 无限循环，等待硬件中断
     for (;;)
     {
+        if (fifo32_status(&keycmd) > 0 && keycmd_wait < 0)
+        { /*如果存在向键盘控制器发送的数据，则发送它 */
+            keycmd_wait = fifo32_get(&keycmd);
+            wait_KBC_sendready();
+            io_out8(PORT_KEYDAT, keycmd_wait);
+        }
         io_cli();
         if (fifo32_status(&fifo))
         {
@@ -199,6 +211,33 @@ void HariMain(void)
                     }
                     sheet_refresh(sht_win, 0, 0, sht_win->bxsize, 21);
                     sheet_refresh(sht_cons, 0, 0, sht_cons->bxsize, 21);
+                }
+                if (i == 256 + 0x3a)
+                { /* CapsLock */
+                    key_leds ^= 4;
+                    fifo32_put(&keycmd, KEYCMD_LED);
+                    fifo32_put(&keycmd, key_leds);
+                }
+                if (i == 256 + 0x45)
+                { /* NumLock */
+                    key_leds ^= 2;
+                    fifo32_put(&keycmd, KEYCMD_LED);
+                    fifo32_put(&keycmd, key_leds);
+                }
+                if (i == 256 + 0x46)
+                { /* ScrollLock */
+                    key_leds ^= 1;
+                    fifo32_put(&keycmd, KEYCMD_LED);
+                    fifo32_put(&keycmd, key_leds);
+                }
+                if (i == 256 + 0xfa)
+                { /*键盘成功接收到数据*/
+                    keycmd_wait = -1;
+                }
+                if (i == 256 + 0xfe)
+                { /*键盘没有成功接收到数据*/
+                    wait_KBC_sendready();
+                    io_out8(PORT_KEYDAT, keycmd_wait);
                 }
                 if (i == 256 + 0x2a) // 左Shift ON
                     key_shift |= 1;
