@@ -158,6 +158,7 @@ void HariMain(void)
                 }
                 else
                     s[0] = 0;
+
                 if ('A' <= s[0] && s[0] <= 'Z')
                 { // 当输入字符为英文字母时
                     if (((key_leds & 4) == 0 && key_shift == 0) || ((key_leds & 4) != 0 && key_shift != 0))
@@ -182,9 +183,14 @@ void HariMain(void)
                         fifo32_put(&task_cons->fifo, s[0] + 256);
                     }
                 }
-                if (i == 256 + 0x0e && cursor_x > 8)
+                if (i == 256 + 0x1c)
+                { // 回车键
+                    if (key_to != 0)
+                        fifo32_put(&task_cons->fifo, 10 + 256); // 发送至命令行窗口
+                }
+                if (i == 256 + 0x0e)
                 { // 退格键
-                    if (key_to == 0)
+                    if (key_to == 0 && cursor_x > 8)
                     { // 发送给任务A
                         if (cursor_x > 8)
                         { // 用空白擦除光标后将光标前移一位
@@ -334,7 +340,7 @@ void console_task(struct SHEET *sheet)
 {
     struct TIMER *timer;
     struct TASK *task = task_now(); // 获取自身内存地址
-    int i, fifobuf[128], cursor_x = 16, cursor_c = -1;
+    int i, fifobuf[128], cursor_x = 24, cursor_y = 28, cursor_c = -1;
     char s[2];
 
     fifo32_init(&task->fifo, 128, fifobuf, task);
@@ -342,7 +348,7 @@ void console_task(struct SHEET *sheet)
     timer_init(timer, &task->fifo, 1);
     timer_settime(timer, 50); // 输入闪烁计时器
 
-    putfonts8_asc_sht(sheet, 8, 28, COL8_FFFFFF, COL8_000000, ">", 1);
+    putfonts8_asc_sht(sheet, 8, 28, COL8_FFFFFF, COL8_000000, "> ", 2);
     for (;;)
     {
         io_cli();
@@ -382,11 +388,21 @@ void console_task(struct SHEET *sheet)
             { // 键盘数据（通过任务A）
                 if (i == 8 + 256)
                 { // 退格键
-                    if (cursor_x > 16)
+                    if (cursor_x > 24)
                     {
                         // 用空白擦除光标后将光标前移一位
-                        putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, " ", 1);
+                        putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, " ", 1);
                         cursor_x -= 8;
+                    }
+                }
+                else if (i == 10 + 256)
+                { // 换行，空格结尾，下一行开头打印提示符>
+                    if (cursor_y < 28 + 112)
+                    {
+                        putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, " ", 1);
+                        cursor_y += 16;
+                        putfonts8_asc_sht(sheet, 8, cursor_y, COL8_FFFFFF, COL8_000000, "> ", 2);
+                        cursor_x = 24;
                     }
                 }
                 else
@@ -396,17 +412,15 @@ void console_task(struct SHEET *sheet)
                         // 显示一个字符之后将光标后移一位
                         s[0] = i - 256;
                         s[1] = 0;
-                        putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF,
-                                          COL8_000000, s, 1);
+                        putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, s, 1);
                         cursor_x += 8;
                     }
                 }
             }
-
             // 重新显示光标
             if (cursor_c >= 0)
-                boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-            sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
+                boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, cursor_y, cursor_x + 7, cursor_y + 15);
+            sheet_refresh(sheet, cursor_x, cursor_y, cursor_x + 8, cursor_y + 16);
         }
     }
 }
