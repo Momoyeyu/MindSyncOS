@@ -354,7 +354,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal)
     struct TIMER *timer;
     struct TASK *task = task_now(); // 获取自身内存地址
     int i, fifobuf[128], cursor_x = 24, cursor_y = 28, cursor_c = -1;
-    char s[30], cmdline[30];
+    char s[30], cmdline[30], *p;
     int x, y;
 
     fifo32_init(&task->fifo, 128, fifobuf, task);
@@ -459,6 +459,62 @@ void console_task(struct SHEET *sheet, unsigned int memtotal)
                                     cursor_y = cons_newline(cursor_y, sheet);
                                 }
                             }
+                        }
+                        cursor_y = cons_newline(cursor_y, sheet);
+                    }
+                    else if (strncmp(cmdline, "type ", 5) == 0)
+                    {
+                        for (x = 5; cmdline[x] == ' ' && x < 30; x++)
+                            ;
+                        for (y = 0; y < 11; y++)
+                            s[y] = ' ';
+                        for (y = 0; y < 11 && cmdline[x] != 0; x++)
+                        {
+                            if (cmdline[x] == '.' && y <= 8)
+                                y = 8;
+                            else
+                            {
+                                s[y] = cmdline[x];
+                                if ('a' <= s[y] && s[y] <= 'z')
+                                    s[y] -= 0x20; // UPPER CASE
+                                y++;
+                            }
+                        }
+                        for (x = 0; x < 224; x++)
+                        {
+                            if (finfo[x].name[0] == 0x00)
+                                break;
+                            if ((finfo[x].type & 0x18) == 0)
+                            {
+                                for (y = 0; y < 11; y++)
+                                    if (finfo[x].name[y] != s[y])
+                                        goto continuing;
+                                break; // find the file!
+                            }
+                        continuing:
+                        }
+                        if (x < 224 && finfo[x].name[0] != 0x00)
+                        { // 找到文件
+                            y = finfo[x].size;
+                            p = (char *)(finfo[x].clustno * 512 + 0x003e00 + ADR_DISKIMG);
+                            cursor_x = 8;
+                            s[1] = 0;
+                            for (x = 0; x < y; x++) // y = size
+                            {
+                                s[0] = p[x];
+                                putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, s, 1);
+                                cursor_x += 8;
+                                if (cursor_x == 8 + 240)
+                                { // 输出占满一行则换行
+                                    cursor_x = 8;
+                                    cursor_y = cons_newline(cursor_y, sheet);
+                                }
+                            }
+                        }
+                        else
+                        { // 没找到
+                            putfonts8_asc_sht(sheet, 8, cursor_y, COL8_FFFFFF, COL8_000000, "File not found.", 15);
+                            cursor_y = cons_newline(cursor_y, sheet);
                         }
                         cursor_y = cons_newline(cursor_y, sheet);
                     }
