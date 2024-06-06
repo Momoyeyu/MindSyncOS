@@ -97,8 +97,6 @@ void putfont8(char *vram, int xsize, int x, int y, char c, char *font);
 void putfonts8_asc(char *vram, int xsize, int x, int y, char c, char *s);
 void init_mouse_cursor8(char *mouse, char bc);
 void putblock8(char *vram, int xsize, int x, int y, char *buf, int width, int height);
-void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act);
-void putfonts8_asc_sht(struct SHEET *sht, int x0, int y0, int c, int bc, char *s, int l);
 
 // 定义了一些颜色常量，用于在函数中指定颜色
 #define COL8_000000 0  // 黑
@@ -280,3 +278,26 @@ struct TASK *task_now(void);
 void task_add(struct TASK *task);
 void task_remove(struct TASK *task);
 void task_idle(void);
+
+// -------------------------------------- windows.c --------------------------------------
+
+void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act);
+void make_wtitle8(unsigned char *buf, int xsize, char *title, char act);
+void putfonts8_asc_sht(struct SHEET *sht, int x0, int y0, int c, int bc, char *s, int l);
+
+// -------------------------------------- file.c --------------------------------------
+struct FILEINFO
+{
+    unsigned char name[8], ext[3], type;
+    char reserve[10];
+    unsigned short time, date, clustno;
+    unsigned int size;
+};
+
+void file_loadfile(int clustno, int size, char *buf, int *fat, char *img);
+void file_readfat(int *fat, unsigned char *img);
+
+// -------------------------------------- console.c --------------------------------------
+void console_task(struct SHEET *sheet, unsigned int memtotal);
+int cons_newline(int cursor_y, struct SHEET *sheet);
