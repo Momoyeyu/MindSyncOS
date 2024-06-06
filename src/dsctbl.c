@@ -1,5 +1,10 @@
 /* GDT 和 IDT 等与 descriptor table 有关的部分 */
 
+// 1～2号由dsctbl.c使用，
+// 3～1002号由mtask.c使用
+//
+// 1003号及其之后可以用于用户程序
+
 #include "bootpack.h"
 
 void init_gdtidt(void)
