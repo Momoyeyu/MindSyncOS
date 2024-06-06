@@ -12,6 +12,8 @@ struct FILEINFO
     unsigned int size;
 };
 
+void file_loadfile(int clustno, int size, char *buf, int *fat, char *img);
+void file_readfat(int *fat, unsigned char *img);
 int cons_newline(int cursor_y, struct SHEET *sheet);
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
 void console_task(struct SHEET *sheet, unsigned int memtotal);
@@ -350,12 +352,15 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c)
 void console_task(struct SHEET *sheet, unsigned int memtotal)
 {
     struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
+    int *fat = (int *)memman_alloc_4k(memman, 4 * 2880);
     struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG + 0x002600);
     struct TIMER *timer;
     struct TASK *task = task_now(); // 获取自身内存地址
     int i, fifobuf[128], cursor_x = 24, cursor_y = 28, cursor_c = -1;
     char s[30], cmdline[30], *p;
     int x, y;
+
+    file_readfat(fat, (unsigned char *)(ADR_DISKIMG + 0x000200));
 
     fifo32_init(&task->fifo, 128, fifobuf, task);
     timer = timer_alloc();
@@ -495,21 +500,50 @@ void console_task(struct SHEET *sheet, unsigned int memtotal)
                         }
                         if (x < 224 && finfo[x].name[0] != 0x00)
                         { // 找到文件
-                            y = finfo[x].size;
-                            p = (char *)(finfo[x].clustno * 512 + 0x003e00 + ADR_DISKIMG);
+                            p = (char *)memman_alloc_4k(memman, finfo[x].size);
+                            file_loadfile(finfo[x].clustno, finfo[x].size, p, fat, (char *)(ADR_DISKIMG + 0x003e00));
                             cursor_x = 8;
                             s[1] = 0;
-                            for (x = 0; x < y; x++) // y = size
+                            for (y = 0; y < finfo[x].size; y++)
                             {
-                                s[0] = p[x];
-                                putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, s, 1);
-                                cursor_x += 8;
-                                if (cursor_x == 8 + 240)
-                                { // 输出占满一行则换行
+                                s[0] = p[y];
+                                if (s[0] == 0x09)
+                                { // 制表符
+                                    for (;;)
+                                    {
+                                        putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, " ", 1);
+                                        cursor_x += 8;
+                                        if (cursor_x == 8 + 240)
+                                        {
+                                            cursor_x = 8;
+                                            cursor_y = cons_newline(cursor_y, sheet);
+                                        }
+                                        // (cursor_x - 8) 命令行窗口的边框有8个像素，要把那部分给去掉
+                                        if (((cursor_x - 8) & 0x1f) == 0)
+                                            break; // 被32整除则break，缩进为四个字符
+                                    }
+                                }
+                                else if (s[0] == 0x01)
+                                { // 换行符
                                     cursor_x = 8;
                                     cursor_y = cons_newline(cursor_y, sheet);
                                 }
-                            }
+                                else if (s[0] == 0x0d)
+                                { // 回车
+                                  //  暂时不做操作
+                                }
+                                else
+                                { // 一般字符
+                                    putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, s, 1);
+                                    cursor_x += 8;
+                                    if (cursor_x == 8 + 240)
+                                    { // 输出占满一行则换行
+                                        cursor_x = 8;
+                                        cursor_y = cons_newline(cursor_y, sheet);
+                                    }
+                                }
+                            } // end for
+                            memman_free_4k(memman, (int)p, finfo[x].size);
                         }
                         else
                         { // 没找到
@@ -590,4 +624,40 @@ int cons_newline(int cursor_y, struct SHEET *sheet)
         sheet_refresh(sheet, 8, 28, 8 + 240, 28 + 128);
     }
     return cursor_y;
+}
+
+void file_readfat(int *fat, unsigned char *img)
+{ // 将磁盘映像中的FAT解压缩
+    int i, j = 0;
+    for (i = 0; i < 2880; i += 2)
+    {
+        fat[i + 0] = (img[j + 0] | img[j + 1] << 8) & 0xfff;
+        fat[i + 1] = (img[j + 1] >> 4 | img[j + 2] << 4) & 0xfff;
+        j += 3;
+    }
+    return;
+}
+
+void file_loadfile(int clustno, int size, char *buf, int *fat, char *img)
+{
+    int i;
+    for (;;)
+    {
+        if (size <= 512)
+        {
+            for (i = 0; i < size; i++)
+            {
+                buf[i] = img[clustno * 512 + i];
+            }
+            break;
+        }
+        for (i = 0; i < 512; i++)
+        {
+            buf[i] = img[clustno * 512 + i];
+        }
+        size -= 512;
+        buf += 512;
+        clustno = fat[clustno];
+    }
+    return;
 }
