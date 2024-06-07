@@ -15,6 +15,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal)
     cons.cur_x = 24;
     cons.cur_y = 28;
     cons.cur_c = -1;
+    *((int *)0x0fec) = (int)&cons; // 将cons的地址保存，供外部应用程序调用API时使用
 
     fifo32_init(&task->fifo, 128, fifobuf, task);
     timer = timer_alloc();

@@ -14,7 +14,8 @@
         GLOBAL	_asm_inthandler21, _asm_inthandler27, _asm_inthandler2c, _asm_inthandler20
 		EXTERN	_inthandler21, _inthandler27, _inthandler2c, _inthandler20
 		GLOBAL	_load_cr0, _store_cr0, _memtest_sub, _load_tr
-		GLOBAL	_farjmp
+		GLOBAL	_farjmp, _asm_cons_putchar
+		EXTERN	_cons_putchar
 
 [SECTION .text]
 
@@ -207,3 +208,11 @@ _farjmp: ; void farjmp(int eip, int cs);
 		JMP 	FAR [ESP+4] ; eip 在 [ESP+4], cs 在 [ESP+8]
 		RET
 
+_asm_cons_putchar:
+		PUSH 	1
+		AND 	EAX,0xff 		; 将AH和EAX的高位置0，将EAX置为已存入字符编码的状态
+		PUSH 	EAX
+		PUSH	DWORD [0x0fec] 	; 读取内存并PUSH该值
+		CALL 	_cons_putchar
+		ADD 	ESP,12 			; 将栈中的数据丢弃
+		RETF					; far-RET
