@@ -232,18 +232,18 @@ void cmd_dir(struct CONSOLE *cons)
                 s[10] = finfo[i].ext[1];
                 s[11] = finfo[i].ext[2];
                 putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, s, 30);
-                cons_newline(&cons);
+                cons_newline(cons);
             }
         }
     }
-    cons_newline(&cons);
+    cons_newline(cons);
     return;
 }
 
 void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline)
 { // 在命令行输出文件内容
     struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
-    int i, j;
+    int i;
     char s[30], *p;
     for (i = 5; cmdline[i] == ' ' && i < 30; i++)
         ; // 定位到参数的开头
@@ -255,7 +255,7 @@ void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline)
         file_loadfile(finfo->clustno, finfo->size, p, fat, (char *)(ADR_DISKIMG + 0x003e00));
         s[1] = 0;
         // 输出文件内容
-        for (j = 0; j < finfo->size; j++)
+        for (i = 0; i < finfo->size; i++)
             cons_putchar(cons, p[i], 1);
         // 释放内存
         memman_free_4k(memman, (int)p, finfo->size);

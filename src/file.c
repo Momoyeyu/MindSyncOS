@@ -43,7 +43,7 @@ void file_loadfile(int clustno, int size, char *buf, int *fat, char *img)
 // 0x10……目录
 //
 struct FILEINFO *file_search(char *name, struct FILEINFO *finfo, int max)
-{
+{ // 搜索文件的文件信息
     int i, j;
     char s[12];
     // 初始化，置空
