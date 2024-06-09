@@ -211,12 +211,14 @@ _farjmp: ; void farjmp(int eip, int cs);
 
 _asm_cons_putchar:
 		STI
+		PUSHAD
 		PUSH 	1
 		AND 	EAX,0xff 		; 将AH和EAX的高位置0，将EAX置为已存入字符编码的状态
 		PUSH 	EAX
 		PUSH	DWORD [0x0fec] 	; 读取内存并PUSH该值
 		CALL 	_cons_putchar
 		ADD 	ESP,12 			; 将栈中的数据丢弃
+		POPAD
 		IRETD					; 使用INT指令来调用的时候会被视作中断来处理，用RETF是无法返回的，需要使用IRETD指令
 
 _farcall;						; void farcall(int eip, int cs);
