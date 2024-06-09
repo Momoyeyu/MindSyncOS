@@ -49,16 +49,16 @@ bootpack.hrb : bootpack.bim Makefile
 haribote.sys : asmhead.bin bootpack.hrb Makefile
 	cat asmhead.bin bootpack.hrb > haribote.sys
 
-hlt.hrb : hlt.nas Makefile
-	$(NASK) hlt.nas hlt.hrb hlt.lst
+hello.hrb : hello.nas Makefile
+	$(NASK) hello.nas hello.hrb hello.lst
 
-haribote.img : ipl.bin haribote.sys hlt.hrb Makefile
+haribote.img : ipl.bin haribote.sys hello.hrb Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:ipl.bin len:512 from:0 to:0 \
 		copy from:haribote.sys to:@: \
 		copy from:ipl.nas to:@: \
 		copy from:make.bat to:@: \
-		copy from:hlt.hrb to:@: \
+		copy from:hello.hrb to:@: \
 		imgout:haribote.img
 
 # 通用 Make 规则
@@ -93,7 +93,7 @@ clean :
 	-$(DEL) *.lst
 	-$(DEL) *.obj
 	-$(DEL) bootpack.map
-	-$(DEL) bootpack.hrb
+	-$(DEL) *.hrb
 	-$(DEL) haribote.sys
 
 src_only :
