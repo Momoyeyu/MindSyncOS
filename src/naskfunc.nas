@@ -16,6 +16,7 @@
 		GLOBAL	_load_cr0, _store_cr0, _memtest_sub, _load_tr
 		GLOBAL	_farjmp, _asm_cons_putchar
 		EXTERN	_cons_putchar
+		GLOBAL	_farcall
 
 [SECTION .text]
 
@@ -209,10 +210,17 @@ _farjmp: ; void farjmp(int eip, int cs);
 		RET
 
 _asm_cons_putchar:
+		STI
 		PUSH 	1
 		AND 	EAX,0xff 		; 将AH和EAX的高位置0，将EAX置为已存入字符编码的状态
 		PUSH 	EAX
 		PUSH	DWORD [0x0fec] 	; 读取内存并PUSH该值
 		CALL 	_cons_putchar
 		ADD 	ESP,12 			; 将栈中的数据丢弃
-		RETF					; far-RET
+		IRETD					; 使用INT指令来调用的时候会被视作中断来处理，用RETF是无法返回的，需要使用IRETD指令
+
+_farcall;						; void farcall(int eip, int cs);
+		CALL 	FAR [ESP+4] 	; eip, cs
+		RET
+
+
