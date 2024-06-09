@@ -2,19 +2,21 @@
 
 - 此项目正在开发一个名为MindSyncOS的操作系统。现暂时用于完成北邮操作系统课程作业，如后续有机会将会继续开发。
 - This project is developing an operating system called MindSyncOS. It is currently used to complete the homework for the operating system course of BUPT, and will continue to be developed if there is an opportunity in the future.
+- 具体的实验报告请见 `docs/实验报告.md`或 `docs/实验报告.pdf`。
 
-## 个人信息验证
+## 个人信息
 
 - 姓名：苏俊杰
 - 学号：2022211607
 - 班级：2022211807
 
 ## 系统运行说明
-- 请再`Windows`系统使用`qemu`运行此项目，暂不支持其他操作系统作为宿主机
-- 理论上映像文件可以直接在裸机运行，但仍建议在`qemu`进行运行。裸机运行出现任何问题，后果自负
+
+- 请再 `Windows`系统使用 `qemu`运行此项目，暂不支持其他操作系统作为宿主机
+- 理论上映像文件可以直接在裸机运行，但仍建议在 `qemu`进行运行。裸机运行出现任何问题，后果自负
 - 请在拉取仓库后，打开命令行，进入 `src`目录，输入 `make run`即可运行操作系统
 - 请使用 `git bash`命令行工具，否则可能会出现错误
-- 如果修改代码后`make run`出现错误，可以尝试`make clean`清除中间文件后再次`make run`。
+- 如果修改代码后 `make run`出现错误，可以尝试 `make clean`清除中间文件后再次 `make run`。
 
 ## 系统现有功能说明
 
