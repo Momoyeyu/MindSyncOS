@@ -1,15 +1,9 @@
 [INSTRSET "i486p"]
 [BITS 32]
-    MOV     ECX,msg
-putloop:
-    MOV     AL,[CS:ECX]
-    CMP     AL, 0
-    JE      fin
-    INT     0x40
-    ADD     ECX,1
-    JMP     putloop
-fin:
-    RETF
+        MOV     EDX,2
+        MOV     EBX,msg
+        INT     0x40
+        RETF
 msg:
-    DB      "hello world!", 0
+        DB      "hello world!", 0
 

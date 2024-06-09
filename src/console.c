@@ -170,28 +170,17 @@ void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int mem
     else if (strncmp(cmdline, "type ", 5) == 0)
         cmd_type(cons, fat, cmdline);
     else if (cmdline[0] != 0)
-    { // 不是命令，也不是空行
-        if (cmd_app(cons, fat, cmdline) == 0)
-        { // 不是命令，不是应用程序，也不是空行
-            putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "Bad command.", 12);
-            cons_newline(cons);
-            cons_newline(cons);
-        }
-    }
+        if (cmd_app(cons, fat, cmdline) == 0) // 不是命令，不是应用程序，也不是空行
+            cons_putstr0(cons, "Bad command.\n\n");
     return;
 }
 
 void cmd_mem(struct CONSOLE *cons, unsigned int memtotal)
 {
     struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
-    char s[30];
-    sprintf(s, "total %dMB", memtotal >> 20);
-    putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, s, 30);
-    cons_newline(cons);
-    sprintf(s, "free %dKB", memman_total(memman) >> 10);
-    putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, s, 30);
-    cons_newline(cons);
-    cons_newline(cons);
+    char s[60];
+    sprintf(s, "total %dMB\nfree %dKB\n", memtotal >> 20, memman_total(memman) >> 10);
+    cons_putstr0(cons, s);
     return;
 }
 
@@ -226,14 +215,13 @@ void cmd_dir(struct CONSOLE *cons)
         {
             if ((finfo[i].type & 0x18) == 0) // 排除“非文件信息”与“目录”
             {
-                sprintf(s, "filename.ext %7d", finfo[i].size);
+                sprintf(s, "filename.ext %7d\n", finfo[i].size);
                 for (j = 0; j < 8; j++)
                     s[j] = finfo[i].name[j];
                 s[9] = finfo[i].ext[0];
                 s[10] = finfo[i].ext[1];
                 s[11] = finfo[i].ext[2];
-                putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, s, 30);
-                cons_newline(cons);
+                cons_putstr0(cons, s);
             }
         }
     }
@@ -245,7 +233,7 @@ void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline)
 { // 在命令行输出文件内容
     struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
     int i;
-    char s[30], *p;
+    char *p;
     for (i = 5; cmdline[i] == ' ' && i < 30; i++)
         ; // 定位到参数的开头
     struct FILEINFO *finfo = file_search(cmdline + i, (struct FILEINFO *)(ADR_DISKIMG + 0x002600), 224);
@@ -254,18 +242,11 @@ void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline)
         // 将文件内容写进内存p
         p = (char *)memman_alloc_4k(memman, finfo->size);
         file_loadfile(finfo->clustno, finfo->size, p, fat, (char *)(ADR_DISKIMG + 0x003e00));
-        s[1] = 0;
-        // 输出文件内容
-        for (i = 0; i < finfo->size; i++)
-            cons_putchar(cons, p[i], 1);
-        // 释放内存
-        memman_free_4k(memman, (int)p, finfo->size);
+        cons_putstr1(cons, p, finfo->size);          // 输出文件内容
+        memman_free_4k(memman, (int)p, finfo->size); // 释放内存
     }
-    else
-    { // 没找到，输出报错
-        putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "File not found.", 15);
-        cons_newline(cons);
-    }
+    else // 没找到，输出报错
+        cons_putstr0(cons, "File not found.\n");
     cons_newline(cons);
     return;
 }
@@ -309,4 +290,31 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
     // putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "File not found.", 15);
     // cons_newline(cons);
     return 0;
+}
+
+void cons_putstr0(struct CONSOLE *cons, char *s)
+{
+    for (; *s != 0; s++)
+        cons_putchar(cons, *s, 1);
+    return;
+}
+
+void cons_putstr1(struct CONSOLE *cons, const char *s, int l)
+{
+    int i;
+    for (i = 0; i < l; i++)
+        cons_putchar(cons, s[i], 1);
+    return;
+}
+
+void hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{ // 寄存器顺序是按照PUSHAD的顺序写的
+    struct CONSOLE *cons = (struct CONSOLE *)*((int *)0x0fec);
+    if (edx == 1)
+        cons_putchar(cons, eax & 0xff, 1);
+    else if (edx == 2)
+        cons_putstr0(cons, (char *)ebx);
+    else if (edx == 3)
+        cons_putstr1(cons, (char *)ebx, ecx);
+    return;
 }

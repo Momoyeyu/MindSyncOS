@@ -15,8 +15,8 @@
 		EXTERN	_inthandler21, _inthandler27, _inthandler2c, _inthandler20
 		GLOBAL	_load_cr0, _store_cr0, _memtest_sub, _load_tr
 		GLOBAL	_farjmp, _asm_cons_putchar
-		EXTERN	_cons_putchar
-		GLOBAL	_farcall
+		EXTERN	_cons_putchar, _hrb_api
+		GLOBAL	_farcall, _asm_hrb_api
 
 [SECTION .text]
 
@@ -225,4 +225,12 @@ _farcall;						; void farcall(int eip, int cs);
 		CALL 	FAR [ESP+4] 	; eip, cs
 		RET
 
+_asm_hrb_api:
+		STI
+		PUSHAD 					; 用于保存寄存器值的PUSH
+		PUSHAD 					; 用于向hrb_api传值的PUSH
+		CALL 	_hrb_api
+		ADD 	ESP,32			; 将函数调用栈中的数据丢弃
+		POPAD
+		IRETD
 

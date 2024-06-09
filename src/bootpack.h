@@ -36,6 +36,7 @@ unsigned int memtest_sub(unsigned int start, unsigned int end);
 void farjmp(int eip, int cs);
 void farcall(int eip, int cs);
 void asm_cons_putchar();
+void asm_hrb_api();
 
 // -------------------------------------- memory.c --------------------------------------
 #define EFLAGS_AC_BIT 0x00040000
@@ -315,3 +316,5 @@ void cmd_cls(struct CONSOLE *cons);
 void cmd_dir(struct CONSOLE *cons);
 void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline);
 int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline);
+void cons_putstr0(struct CONSOLE *cons, char *s);
+void cons_putstr1(struct CONSOLE *cons, const char *s, int l);
