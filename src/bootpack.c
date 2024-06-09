@@ -128,7 +128,7 @@ void HariMain(void)
     for (;;)
     {
         if (fifo32_status(&keycmd) > 0 && keycmd_wait < 0)
-        { /*如果存在向键盘控制器发送的数据，则发送它 */
+        { // 如果存在向键盘控制器发送的数据，则发送它
             keycmd_wait = fifo32_get(&keycmd);
             wait_KBC_sendready();
             io_out8(PORT_KEYDAT, keycmd_wait);
@@ -152,11 +152,9 @@ void HariMain(void)
                 else
                     s[0] = 0;
 
-                if ('A' <= s[0] && s[0] <= 'Z')
-                { // 当输入字符为英文字母时
+                if ('A' <= s[0] && s[0] <= 'Z') // 当输入字符为大写英文字母时
                     if (((key_leds & 4) == 0 && key_shift == 0) || ((key_leds & 4) != 0 && key_shift != 0))
                         s[0] += 0x20; // 将大写字母转换为小写字母
-                }
 
                 if (s[0] != 0)
                 { // 一般字符
@@ -166,8 +164,7 @@ void HariMain(void)
                         {
                             // 显示一个字符之后将光标后移一位
                             s[1] = 0;
-                            putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000,
-                                              COL8_FFFFFF, s, 1);
+                            putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, s, 1);
                             cursor_x += 8;
                         }
                     }
